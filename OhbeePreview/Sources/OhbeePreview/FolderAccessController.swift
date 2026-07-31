@@ -11,11 +11,26 @@ final class FolderAccessController {
 
     private var memory = SessionAuthorizationMemory()
     private var heldScopes: [URL: HeldScope] = [:]
+    private var selectedFileScope: HeldScope?
 
     deinit {
+        if let selectedFileScope, selectedFileScope.didStart {
+            selectedFileScope.url.stopAccessingSecurityScopedResource()
+        }
         for scope in heldScopes.values where scope.didStart {
             scope.url.stopAccessingSecurityScopedResource()
         }
+    }
+
+    func replaceSelectedFileAccess(with fileURL: URL) {
+        if let selectedFileScope, selectedFileScope.didStart {
+            selectedFileScope.url.stopAccessingSecurityScopedResource()
+        }
+        let normalized = fileURL.standardizedFileURL
+        selectedFileScope = HeldScope(
+            url: normalized,
+            didStart: normalized.startAccessingSecurityScopedResource()
+        )
     }
 
     func hasAuthorized(_ folderURL: URL) -> Bool {
@@ -62,4 +77,3 @@ final class FolderAccessController {
         }
     }
 }
-

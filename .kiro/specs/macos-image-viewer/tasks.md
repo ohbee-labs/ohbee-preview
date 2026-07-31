@@ -1,7 +1,7 @@
 # macOS Image Viewer — Value-Oriented Delivery Plan
 
 Status: Replanned for incremental user-visible delivery
-Current implementation scope: Foundation complete; Folder Navigation MVP next
+Current implementation scope: Folder Navigation MVP complete; Milestone 2 not started
 Sources of truth: `requirements.md`, `design.md`  
 Last updated: 2026-07-31
 
@@ -79,7 +79,7 @@ The standalone sandbox spike was waived by the product owner. Folder access must
 
 ## 4. Milestone 1 — Folder Navigation MVP
 
-Status: Ready for implementation
+Status: Completed 2026-07-31; full release gate passed
 Estimated overall MVP completion after milestone: 40%
 
 ### Objective
@@ -200,9 +200,20 @@ Deliver the first version of Ohbee Preview that users can actually use every day
 
 Ship a signed sandboxed build to internal users only when the complete Finder-open-to-folder-navigation journey passes without thumbnails, cache optimization, prefetch, or viewport controls.
 
+Result: **PASSED 2026-07-31**
+
+Manual acceptance confirmed:
+
+- Explicit Allow Folder Access grants the expected parent folder while preserving the displayed image.
+- Discovery enables Previous/Next in correct natural filename order.
+- First/last commands disable correctly and navigation does not wrap.
+- Cancelling the folder picker preserves single-image viewing and does not reopen the picker automatically.
+- A real HEIC/HEIF image opens and displays successfully.
+- No bookmark-related UI or persistence is present.
+
 ## 5. Milestone 2 — Image Inspection Controls
 
-Status: Blocked by Milestone 1
+Status: Planned; not started
 Estimated overall MVP completion after milestone: 58%
 
 ### Objective
@@ -707,7 +718,9 @@ Mitigation:
 ## 15. Current authorization
 
 - Completed foundation: Implemented and published.
-- Folder Navigation MVP: Planned but not yet implemented.
+- Folder Navigation MVP: Complete; automated, manual, build, signing, and release gates pass.
+- Overall MVP progress: 40%.
+- Milestone 2: Planned; not started.
 - Later milestones: Planned only.
 - Post-MVP capabilities: Not authorized.
 - No production code may be added as part of this replanning change.

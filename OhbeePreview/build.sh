@@ -56,9 +56,11 @@ xcrun swiftc \
   "${COMMON_FLAGS[@]}" \
   "${SWIFT_FLAGS[@]}" \
   -parse-as-library \
+  -whole-module-optimization \
   -emit-module \
   -emit-object \
   -module-name OhbeeStage2Core \
+  "$PROJECT_DIR/Sources/OhbeeStage2Core/FolderNavigation.swift" \
   "$PROJECT_DIR/Sources/OhbeeStage2Core/Stage2State.swift" \
   -emit-module-path "$CORE_MODULE_DIR/OhbeeStage2Core.swiftmodule" \
   -o "$CORE_MODULE_DIR/OhbeeStage2Core.o"
@@ -86,5 +88,5 @@ codesign --force --deep --sign - \
   "$APP_DIR"
 
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
-codesign -d --entitlements :- "$APP_DIR"
+codesign -d --entitlements - "$APP_DIR"
 echo "$APP_DIR"

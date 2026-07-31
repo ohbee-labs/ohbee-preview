@@ -2,7 +2,7 @@ import Foundation
 
 public enum SupportedImageFormat {
     public static let fileExtensions: Set<String> = [
-        "jpeg", "jpg", "png", "heic", "heif", "gif", "tif", "tiff"
+        "jpeg", "jpe", "jpg", "png", "heic", "heif", "gif", "tif", "tiff"
     ]
 
     public static func supports(_ url: URL) -> Bool {

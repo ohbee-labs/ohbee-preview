@@ -8,9 +8,27 @@ struct LoadedSelectedImage: @unchecked Sendable {
     let sourceURL: URL
 }
 
-enum SelectedImageLoadError: Error {
+enum SelectedImageLoadError: Error, Equatable {
+    case missing
+    case unsupported
+    case permissionDenied
     case unreadable
     case decodeFailed
+
+    var userMessage: String {
+        switch self {
+        case .missing:
+            "The image no longer exists."
+        case .unsupported:
+            "This file format is not supported."
+        case .permissionDenied:
+            "Ohbee Preview does not have permission to read this image."
+        case .unreadable:
+            "The image could not be read."
+        case .decodeFailed:
+            "The image data could not be decoded."
+        }
+    }
 }
 
 enum SelectedImageLoader {
@@ -24,10 +42,23 @@ enum SelectedImageLoader {
             }
 
             try Task.checkCancellation()
-            guard FileManager.default.isReadableFile(atPath: url.path) else {
+            guard SupportedImageFormat.supports(url) else {
+                throw SelectedImageLoadError.unsupported
+            }
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw SelectedImageLoadError.missing
+            }
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch {
+                let nsError = error as NSError
+                if nsError.domain == NSCocoaErrorDomain,
+                   nsError.code == NSFileReadNoPermissionError {
+                    throw SelectedImageLoadError.permissionDenied
+                }
                 throw SelectedImageLoadError.unreadable
             }
-            let data = try Data(contentsOf: url)
             guard
                 let source = CGImageSourceCreateWithData(data as CFData, nil),
                 let cgImage = CGImageSourceCreateImageAtIndex(

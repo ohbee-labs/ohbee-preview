@@ -1,15 +1,19 @@
 # Ohbee Preview
 
-Native macOS image viewer. Current implementation is limited to Stage 2:
+Native macOS image viewer. Current implementation includes the Folder Navigation
+MVP:
 
 - one reusable viewer window;
 - Finder/Open With lifecycle handling;
-- temporary selected-image presentation;
-- initial same-session folder authorization state and explicit fallback shell;
+- production static-image presentation for approved formats;
+- direct-child sibling discovery and natural filename sorting;
+- Previous/Next navigation through buttons, menus, and Left/Right Arrow;
+- same-session folder authorization and explicit fallback;
+- loading, typed failure, cancellation, and stale-result protection;
 - local `os.Logger` and signpost instrumentation.
 
-Sibling navigation, thumbnails, zoom, rotation, GIF playback, and Trash are not
-implemented in this stage.
+Thumbnails, cache optimization, prefetch, zoom, rotation, animated GIF playback,
+Finder actions, and Trash are not implemented in this milestone.
 
 Build:
 

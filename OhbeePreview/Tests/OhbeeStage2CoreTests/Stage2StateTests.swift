@@ -51,7 +51,9 @@ final class Stage2StateTests: XCTestCase {
     }
 
     func testSupportedImageFormatsAreCaseInsensitive() {
-        for fileExtension in ["jpg", "JPEG", "png", "HEIC", "heif", "gif", "tif", "TIFF"] {
+        for fileExtension in [
+            "jpg", "JPE", "JPEG", "png", "HEIC", "heif", "gif", "tif", "TIFF"
+        ] {
             XCTAssertTrue(
                 SupportedImageFormat.supports(
                     URL(fileURLWithPath: "/tmp/image.\(fileExtension)")

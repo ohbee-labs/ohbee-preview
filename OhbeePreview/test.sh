@@ -28,6 +28,7 @@ else
     -module-cache-path "$BUILD_ROOT/ModuleCache" \
     -swift-version 6 \
     -parse-as-library \
+    "$PROJECT_DIR/Sources/OhbeeStage2Core/FolderNavigation.swift" \
     "$PROJECT_DIR/Sources/OhbeeStage2Core/Stage2State.swift" \
     "$PROJECT_DIR/Tests/Stage2CoreCLITests/main.swift" \
     -o "$BUILD_ROOT/Stage2CoreCLITests"
@@ -39,9 +40,11 @@ else
     -module-cache-path "$BUILD_ROOT/ModuleCache" \
     -swift-version 6 \
     -parse-as-library \
+    -whole-module-optimization \
     -emit-module \
     -emit-object \
     -module-name OhbeeStage2Core \
+    "$PROJECT_DIR/Sources/OhbeeStage2Core/FolderNavigation.swift" \
     "$PROJECT_DIR/Sources/OhbeeStage2Core/Stage2State.swift" \
     -emit-module-path "$BUILD_ROOT/CoreModule/OhbeeStage2Core.swiftmodule" \
     -o "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o"
@@ -54,6 +57,7 @@ else
     -parse-as-library \
     -framework AppKit \
     -framework ImageIO \
+    -framework UniformTypeIdentifiers \
     -I "$BUILD_ROOT/CoreModule" \
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
     "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
