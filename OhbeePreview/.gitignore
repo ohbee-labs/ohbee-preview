@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+.build-stage2/
+.build-stage2-tests/
+.build-icon/
+.swiftpm/
+dist/
