@@ -3,7 +3,8 @@
 Ohbee Preview is a lightweight, native macOS image viewer focused on fast
 folder browsing, keyboard-first navigation, and predictable image inspection.
 
-Release **v1.0.0** is the first stable MVP baseline.
+Release **v1.0.1** is the current stable MVP baseline. It preserves the v1.0.0
+feature set and improves application-icon legibility in small macOS surfaces.
 
 ## Highlights
 
@@ -63,7 +64,7 @@ Additional design and product specifications are available in
 | JPEG | `.jpg`, `.jpeg`, `.jpe` |
 | PNG | `.png` |
 | HEIC / HEIF | `.heic`, `.heif` |
-| GIF | `.gif` (static first-frame display in v1.0.0) |
+| GIF | `.gif` (static first-frame display in v1.0.1) |
 | TIFF | `.tif`, `.tiff` |
 
 ## Keyboard Shortcuts
@@ -180,7 +181,7 @@ after the selected image is displayed.
 
 Folder authorization is retained only for the current application session.
 Persistent authorization and security-scoped bookmarks are intentionally out of
-scope for v1.0.0. Cancelling the folder picker leaves single-image viewing
+scope for v1.0.1. Cancelling the folder picker leaves single-image viewing
 available and does not trigger an automatic repeat prompt.
 
 ## Roadmap
@@ -194,7 +195,7 @@ Potential future directions include:
 - measurement-driven optimization for extremely large folders.
 
 These items are future work, have no promised release date, and are not included
-in v1.0.0.
+in v1.0.1.
 
 ## License
 
