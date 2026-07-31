@@ -2,7 +2,7 @@
 
 Status: Replanned for incremental user-visible delivery
 Current implementation scope: Milestone 2 complete; engineering phase gate approved
-Public baseline release: v1.0.1 — Stable MVP visual-quality patch — 2026-07-31
+Public baseline release: v1.0.2 — Stable MVP viewport-correctness patch — 2026-07-31
 Release packaging: Complete — ad-hoc signed local artifact
 Sources of truth: `requirements.md`, `design.md`  
 Last updated: 2026-07-31
@@ -744,10 +744,11 @@ Mitigation:
 - Overall MVP progress: 40%.
 - Milestone 2: Complete; automated, manual GUI, engineering review, build, sandbox, entitlement, signing, and release gates pass.
 - Overall MVP progress: 58%.
-- Release v1.0.1 is an icon-legibility-only patch; it adds dedicated simplified 16×16, 32×32, and 64×64 artwork while preserving the established artwork from 128×128 upward.
-- Release v1.0.1 is packaged at `dist/Ohbee-Preview-1.0.1/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.1/Ohbee-Preview-1.0.1-macOS.zip`; no viewer behavior changes are included.
-- Packaged metadata verifies marketing version `1.0.1`, build `2`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
-- Clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, icon representation inspection, ZIP extraction, packaged launch smoke test, and the full automated test suite pass. Manual Finder icon/cache validation remains required on an installed copy.
+- Release v1.0.1 remains the completed icon-legibility patch with dedicated simplified 16×16, 32×32, and 64×64 artwork and unchanged large artwork.
+- Release v1.0.2 is a focused viewport-correctness patch that reasserts the committed image generation's centering invariant after later SwiftUI/AppKit layout updates.
+- Release v1.0.2 is packaged at `dist/Ohbee-Preview-1.0.2/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.2/Ohbee-Preview-1.0.2-macOS.zip`; no Milestone 3 functionality is included.
+- Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
+- Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, and packaged launch smoke test pass. The full manual Next/Previous matrix in an installed GUI build remains pending.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
 - Later milestones: Planned only.
 - Post-MVP capabilities: Not authorized.

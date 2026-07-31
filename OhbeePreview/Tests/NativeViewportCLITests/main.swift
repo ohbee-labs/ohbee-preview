@@ -40,6 +40,14 @@ enum NativeViewportCLITests {
         let scrollView = InspectionScrollView(
             frame: NSRect(x: 0, y: 0, width: 1_000, height: 800)
         )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1_000, height: 800),
+            styleMask: [.titled, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = scrollView
+        scrollView.layoutSubtreeIfNeeded()
         let image = NSImage(size: NSSize(width: 4_000, height: 2_000))
 
         scrollView.canvas.configure(
@@ -194,6 +202,178 @@ enum NativeViewportCLITests {
             "Replacement image lost vertical centering after resize"
         )
 
-        print("PASS: 22 native AppKit viewport checks")
+        // Installed-app regression: a replacement was centered synchronously,
+        // then a later AppKit clip-bounds/layout update restored a zero origin
+        // without changing the viewport size. The committed generation must
+        // reassert centering after that real NSScrollView lifecycle event.
+        let lifecycleCases: [(CGSize, QuarterTurn, String)] = [
+            (CGSize(width: 320, height: 180), .zero, "first landscape"),
+            (CGSize(width: 4_000, height: 2_000), .zero, "large landscape"),
+            (CGSize(width: 600, height: 1_600), .zero, "portrait"),
+            (CGSize(width: 160, height: 120), .zero, "small"),
+            (CGSize(width: 2_400, height: 800), .right90, "rotated")
+        ]
+        var committedGeneration: UInt64 = 100
+        for cycle in 0..<3 {
+            for (pixelSize, rotation, label) in lifecycleCases {
+                committedGeneration += 1
+                let applied = scrollView.applyViewport(
+                    image: NSImage(size: pixelSize),
+                    pixelSize: pixelSize,
+                    backingScale: 1,
+                    rotation: rotation,
+                    mode: .fit,
+                    requestedScale: 1,
+                    generation: committedGeneration,
+                    accessibilityLabel: label,
+                    resetsPreviousGeometry: true
+                )
+                try expect(applied != nil, "Generation \(committedGeneration) was not applied")
+                try expectCentered(
+                    scrollView,
+                    axis: .horizontal,
+                    "Cycle \(cycle) \(label) was not initially centered"
+                )
+                try expectCentered(
+                    scrollView,
+                    axis: .vertical,
+                    "Cycle \(cycle) \(label) was not initially centered"
+                )
+
+                // Model the later AppKit/SwiftUI geometry write that caused
+                // the installed Release app to expose leading alignment.
+                scrollView.contentView.bounds.origin = .zero
+                scrollView.layout()
+                try expectCentered(
+                    scrollView,
+                    axis: .horizontal,
+                    "Later layout moved \(label) to the leading edge"
+                )
+                try expectCentered(
+                    scrollView,
+                    axis: .vertical,
+                    "Later layout moved \(label) to the bottom edge"
+                )
+            }
+        }
+
+        // Zoom/pan state from the previous image must not affect the next
+        // committed Fit generation.
+        scrollView.applyMagnification(3, preserveCenter: false)
+        scrollView.contentView.bounds.origin = NSPoint(x: 175, y: 90)
+        committedGeneration += 1
+        _ = scrollView.applyViewport(
+            image: NSImage(size: CGSize(width: 480, height: 1_200)),
+            pixelSize: CGSize(width: 480, height: 1_200),
+            backingScale: 1,
+            rotation: .left90,
+            mode: .fit,
+            requestedScale: 1,
+            generation: committedGeneration,
+            accessibilityLabel: "navigation after zoom pan rotation",
+            resetsPreviousGeometry: true
+        )
+        try expectCentered(
+            scrollView,
+            axis: .horizontal,
+            "Zoom/pan geometry leaked into replacement"
+        )
+        try expectCentered(
+            scrollView,
+            axis: .vertical,
+            "Rotation geometry leaked into replacement"
+        )
+
+        // A stale representable callback must not replace or mutate the newer
+        // committed generation.
+        let frameBeforeStaleUpdate = scrollView.canvas.frame
+        let staleResult = scrollView.applyViewport(
+            image: NSImage(size: CGSize(width: 50, height: 50)),
+            pixelSize: CGSize(width: 50, height: 50),
+            backingScale: 1,
+            rotation: .zero,
+            mode: .fit,
+            requestedScale: 1,
+            generation: committedGeneration - 1,
+            accessibilityLabel: "stale",
+            resetsPreviousGeometry: true
+        )
+        try expect(staleResult == nil, "Stale generation was accepted")
+        try expect(
+            scrollView.canvas.frame == frameBeforeStaleUpdate,
+            "Stale generation changed document geometry"
+        )
+
+        // Resize immediately after navigation and repeat layout. Fit mode must
+        // recompute from the final clip size and remain centered.
+        scrollView.frame.size = CGSize(width: 760, height: 980)
+        scrollView.layoutSubtreeIfNeeded()
+        scrollView.layout()
+        try expectCentered(
+            scrollView,
+            axis: .horizontal,
+            "Immediate resize lost horizontal centering"
+        )
+        try expectCentered(
+            scrollView,
+            axis: .vertical,
+            "Immediate resize lost vertical centering"
+        )
+
+        // Exercise the real coordinator path used by repeated
+        // NSViewRepresentable.updateNSView calls, not only the native view API.
+        func representable(
+            size: CGSize,
+            generation: UInt64
+        ) -> ImageInspectionView {
+            ImageInspectionView(
+                image: NSImage(size: size),
+                filename: "private",
+                generation: generation,
+                state: ViewportState(),
+                onEffectiveScaleChanged: { _ in },
+                onPinchScaleChanged: { _ in },
+                onPrevious: {},
+                onNext: {},
+                onCommit: {},
+                onFitCalculated: { _ in },
+                onInvalidTransform: {}
+            )
+        }
+        let representableScrollView = InspectionScrollView(
+            frame: NSRect(x: 0, y: 0, width: 900, height: 700)
+        )
+        let representableWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+            styleMask: [.titled, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        representableWindow.contentView = representableScrollView
+        let coordinator = representable(
+            size: CGSize(width: 1_600, height: 900),
+            generation: 500
+        ).makeCoordinator()
+        coordinator.connect(to: representableScrollView)
+        coordinator.apply(to: representableScrollView)
+        coordinator.parent = representable(
+            size: CGSize(width: 500, height: 1_500),
+            generation: 501
+        )
+        coordinator.apply(to: representableScrollView)
+        representableScrollView.contentView.bounds.origin = .zero
+        representableScrollView.layout()
+        try expectCentered(
+            representableScrollView,
+            axis: .horizontal,
+            "Repeated representable update lost horizontal centering"
+        )
+        try expectCentered(
+            representableScrollView,
+            axis: .vertical,
+            "Repeated representable update lost vertical centering"
+        )
+
+        print("PASS: 70 native AppKit viewport checks")
     }
 }

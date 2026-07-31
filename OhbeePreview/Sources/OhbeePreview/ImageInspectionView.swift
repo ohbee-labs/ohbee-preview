@@ -2,6 +2,20 @@ import AppKit
 import OhbeeStage2Core
 import SwiftUI
 
+#if DEBUG
+struct ViewportGeometrySnapshot {
+    let generation: UInt64
+    let pixelSize: CGSize
+    let rotation: QuarterTurn
+    let magnification: CGFloat
+    let clipBounds: CGRect
+    let documentFrame: CGRect
+    let contentInsets: NSEdgeInsets
+    let viewportSize: CGSize
+    let constrainedOrigin: CGPoint
+}
+#endif
+
 struct ImageInspectionView: NSViewRepresentable {
     let image: NSImage
     let filename: String
@@ -46,10 +60,32 @@ struct ImageInspectionView: NSViewRepresentable {
 
         func connect(to scrollView: InspectionScrollView) {
             self.scrollView = scrollView
-            scrollView.onLayout = { [weak self] in
-                guard let self, let scrollView = self.scrollView else { return }
-                self.apply(to: scrollView)
+            scrollView.onGeometryApplied = { [weak self] generation, scale in
+                guard let self, self.parent.generation == generation else { return }
+                self.parent.onEffectiveScaleChanged(scale)
             }
+            #if DEBUG
+            scrollView.onStaleGeneration = { generation, committed in
+                Diagnostics.recordStaleViewportCallback(
+                    generation: generation,
+                    committedGeneration: committed
+                )
+            }
+            scrollView.onDebugGeometry = { source, snapshot in
+                Diagnostics.recordViewportGeometry(
+                    source: source,
+                    generation: snapshot.generation,
+                    pixelSize: snapshot.pixelSize,
+                    rotation: snapshot.rotation,
+                    magnification: snapshot.magnification,
+                    clipBounds: snapshot.clipBounds,
+                    documentFrame: snapshot.documentFrame,
+                    contentInsets: snapshot.contentInsets,
+                    viewportSize: snapshot.viewportSize,
+                    constrainedOrigin: snapshot.constrainedOrigin
+                )
+            }
+            #endif
             scrollView.onPrevious = { [weak self] in
                 self?.parent.onPrevious()
             }
@@ -103,54 +139,25 @@ struct ImageInspectionView: NSViewRepresentable {
                 return
             }
 
-            scrollView.installContent(
+            let clock = ContinuousClock()
+            let fitStarted = clock.now
+            guard let scale = scrollView.applyViewport(
                 image: parent.image,
                 pixelSize: pixelSize,
                 backingScale: backingScale,
                 rotation: parent.state.rotation,
-                accessibilityLabel: "Image \(parent.filename)"
-            )
-            scrollView.viewportMode = parent.state.mode
-
-            let scale: CGFloat
-            switch parent.state.mode {
-            case .fit:
-                let clock = ContinuousClock()
-                let start = clock.now
-                scale = CGFloat(
-                    ViewportGeometry.fitScale(
-                        imagePixels: ViewportDimensions(
-                            width: pixelSize.width,
-                            height: pixelSize.height
-                        ),
-                        viewportPoints: ViewportDimensions(
-                            width: viewportSize.width,
-                            height: viewportSize.height
-                        ),
-                        backingScale: Double(backingScale),
-                        rotation: parent.state.rotation
-                    )
-                )
-                parent.onFitCalculated(start.duration(to: clock.now))
-            case .actualSize:
-                scale = 1
-            case .manual:
-                scale = CGFloat(
-                    ViewportState.clampedScale(parent.state.scale)
-                )
+                mode: parent.state.mode,
+                requestedScale: CGFloat(parent.state.scale),
+                generation: parent.generation,
+                accessibilityLabel: "Image \(parent.filename)",
+                resetsPreviousGeometry: imageChanged
+            ) else { return }
+            if parent.state.mode == .fit {
+                parent.onFitCalculated(fitStarted.duration(to: clock.now))
             }
-
-            scrollView.applyMagnification(
-                scale,
-                preserveCenter: !imageChanged
-            )
             parent.onEffectiveScaleChanged(scale)
 
             if imageChanged {
-                // Replacement is one ordered geometry transaction: canonical
-                // document origin, completed layout, magnification, then a
-                // constrained clip origin based on the new document.
-                scrollView.resetViewportForReplacement()
                 appliedGeneration = parent.generation
                 let committedGeneration = parent.generation
                 DispatchQueue.main.async { [weak self] in
@@ -159,8 +166,6 @@ struct ImageInspectionView: NSViewRepresentable {
                     }
                     self?.parent.onCommit()
                 }
-            } else if parent.state.mode == .fit {
-                scrollView.centerDocument()
             }
 
             appliedState = parent.state
@@ -263,9 +268,22 @@ final class InspectionCanvasView: NSView {
 }
 
 final class InspectionScrollView: NSScrollView {
+    private struct ViewportConfiguration {
+        let pixelSize: CGSize
+        let backingScale: CGFloat
+        let rotation: QuarterTurn
+        let mode: ViewportMode
+        let requestedScale: CGFloat
+        let generation: UInt64
+    }
+
     let canvas = InspectionCanvasView()
     var viewportMode: ViewportMode = .fit
-    var onLayout: (() -> Void)?
+    var onGeometryApplied: ((UInt64, CGFloat) -> Void)?
+    var onStaleGeneration: ((UInt64, UInt64) -> Void)?
+    #if DEBUG
+    var onDebugGeometry: ((StaticString, ViewportGeometrySnapshot) -> Void)?
+    #endif
     var onPrevious: (() -> Void)?
     var onNext: (() -> Void)?
     var onMagnification: ((CGFloat) -> Void)?
@@ -273,6 +291,8 @@ final class InspectionScrollView: NSScrollView {
     private var dragStartInWindow: NSPoint?
     private var dragStartBoundsOrigin: NSPoint?
     private var horizontalGestureDistance: CGFloat = 0
+    private var viewportConfiguration: ViewportConfiguration?
+    private var isApplyingViewport = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -298,9 +318,60 @@ final class InspectionScrollView: NSScrollView {
 
     override func layout() {
         super.layout()
-        onLayout?()
+        // AppKit can update the clip-view bounds origin during a later layout
+        // pass without changing its size. Reassert the committed generation's
+        // invariant after super.layout() so that update cannot expose stale or
+        // leading-edge geometry.
+        _ = applyAuthoritativeViewportGeometry(
+            resetsPreviousGeometry: false,
+            source: "layout"
+        )
     }
 
+    @discardableResult
+    func applyViewport(
+        image: NSImage,
+        pixelSize: CGSize,
+        backingScale: CGFloat,
+        rotation: QuarterTurn,
+        mode: ViewportMode,
+        requestedScale: CGFloat,
+        generation: UInt64,
+        accessibilityLabel: String,
+        resetsPreviousGeometry: Bool
+    ) -> CGFloat? {
+        if let committed = viewportConfiguration?.generation,
+           generation < committed {
+            onStaleGeneration?(generation, committed)
+            return nil
+        }
+        viewportConfiguration = ViewportConfiguration(
+            pixelSize: pixelSize,
+            backingScale: backingScale,
+            rotation: rotation,
+            mode: mode,
+            requestedScale: requestedScale,
+            generation: generation
+        )
+        canvas.configure(
+            image: image,
+            pixelSize: pixelSize,
+            backingScale: backingScale,
+            rotation: rotation,
+            accessibilityLabel: accessibilityLabel
+        )
+        viewportMode = mode
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        return applyAuthoritativeViewportGeometry(
+            resetsPreviousGeometry: resetsPreviousGeometry,
+            source: "representable"
+        )
+    }
+
+    // Compatibility seam retained for focused native tests. Production
+    // representable updates use applyViewport(_:), which owns the full
+    // generation-aware geometry transaction.
     func installContent(
         image: NSImage,
         pixelSize: CGSize,
@@ -347,6 +418,96 @@ final class InspectionScrollView: NSScrollView {
         needsLayout = true
         layoutSubtreeIfNeeded()
         centerDocument()
+    }
+
+    @discardableResult
+    private func applyAuthoritativeViewportGeometry(
+        resetsPreviousGeometry: Bool,
+        source: StaticString
+    ) -> CGFloat? {
+        guard
+            !isApplyingViewport,
+            let configuration = viewportConfiguration,
+            contentSize.width > 0,
+            contentSize.height > 0
+        else { return nil }
+
+        isApplyingViewport = true
+        defer { isApplyingViewport = false }
+
+        // A replacement owns fresh document and clip geometry. Older pan and
+        // magnification origins must never leak into the new generation.
+        canvas.frame.origin = .zero
+        if resetsPreviousGeometry {
+            contentView.bounds.origin = .zero
+        }
+
+        let scale: CGFloat
+        switch configuration.mode {
+        case .fit:
+            scale = CGFloat(
+                ViewportGeometry.fitScale(
+                    imagePixels: ViewportDimensions(
+                        width: configuration.pixelSize.width,
+                        height: configuration.pixelSize.height
+                    ),
+                    viewportPoints: ViewportDimensions(
+                        width: contentSize.width,
+                        height: contentSize.height
+                    ),
+                    backingScale: Double(configuration.backingScale),
+                    rotation: configuration.rotation
+                )
+            )
+        case .actualSize:
+            scale = 1
+        case .manual:
+            scale = CGFloat(
+                ViewportState.clampedScale(
+                    Double(configuration.requestedScale)
+                )
+            )
+        }
+
+        let clamped = CGFloat(ViewportState.clampedScale(Double(scale)))
+        if abs(magnification - clamped) > .ulpOfOne {
+            if configuration.mode == .fit || resetsPreviousGeometry {
+                magnification = clamped
+            } else {
+                let center = NSPoint(
+                    x: contentView.bounds.midX,
+                    y: contentView.bounds.midY
+                )
+                setMagnification(clamped, centeredAt: center)
+            }
+        }
+
+        // constrainBoundsRect is the single invariant for both axes: it
+        // centers a smaller transformed document and clamps an overflowing
+        // document to legal scroll bounds.
+        let constrained = contentView.constrainBoundsRect(contentView.bounds)
+        if contentView.bounds.origin != constrained.origin {
+            contentView.scroll(to: constrained.origin)
+        }
+        reflectScrolledClipView(contentView)
+        #if DEBUG
+        onDebugGeometry?(
+            source,
+            ViewportGeometrySnapshot(
+                generation: configuration.generation,
+                pixelSize: configuration.pixelSize,
+                rotation: configuration.rotation,
+                magnification: clamped,
+                clipBounds: contentView.bounds,
+                documentFrame: canvas.frame,
+                contentInsets: contentInsets,
+                viewportSize: contentSize,
+                constrainedOrigin: constrained.origin
+            )
+        )
+        #endif
+        onGeometryApplied?(configuration.generation, clamped)
+        return clamped
     }
 
     override func keyDown(with event: NSEvent) {

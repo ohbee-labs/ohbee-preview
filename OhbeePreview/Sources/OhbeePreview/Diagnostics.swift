@@ -148,6 +148,43 @@ enum Diagnostics {
         )
     }
 
+    #if DEBUG
+    static func recordStaleViewportCallback(
+        generation: UInt64,
+        committedGeneration: UInt64
+    ) {
+        viewport.debug(
+            "Stale viewport callback rejected generation=\(generation) committed=\(committedGeneration)"
+        )
+    }
+
+    static func recordViewportGeometry(
+        source: StaticString,
+        generation: UInt64,
+        pixelSize: CGSize,
+        rotation: QuarterTurn,
+        magnification: CGFloat,
+        clipBounds: CGRect,
+        documentFrame: CGRect,
+        contentInsets: NSEdgeInsets,
+        viewportSize: CGSize,
+        constrainedOrigin: CGPoint
+    ) {
+        viewport.debug(
+            """
+            Geometry source=\(source) generation=\(generation) \
+            pixels=\(String(describing: pixelSize), privacy: .public) \
+            rotation=\(rotation.rawValue) magnification=\(magnification) \
+            clip=\(String(describing: clipBounds), privacy: .public) \
+            document=\(String(describing: documentFrame), privacy: .public) \
+            insets=\(String(describing: contentInsets), privacy: .public) \
+            viewport=\(String(describing: viewportSize), privacy: .public) \
+            constrainedOrigin=\(String(describing: constrainedOrigin), privacy: .public)
+            """
+        )
+    }
+    #endif
+
     static func recordZoomCommand(name: String, duration: Duration) {
         viewport.notice(
             """
