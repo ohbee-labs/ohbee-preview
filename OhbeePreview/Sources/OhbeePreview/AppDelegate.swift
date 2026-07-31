@@ -4,13 +4,13 @@ import OhbeeStage2Core
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var model: AppModel?
-    private var pendingURLs: [URL] = []
+    private var pendingURL: URL?
 
     func attach(model: AppModel) {
         self.model = model
-        if let first = OpenURLPolicy.firstSupported(in: pendingURLs) {
-            pendingURLs.removeAll()
-            deliver(first)
+        if let pendingURL {
+            self.pendingURL = nil
+            deliver(pendingURL)
         }
     }
 
@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let first = OpenURLPolicy.firstSupported(in: urls) else { return }
         if model == nil {
-            pendingURLs.append(first)
+            pendingURL = first
         } else {
             deliver(first)
         }
@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         if model == nil {
-            pendingURLs.append(first)
+            pendingURL = first
         } else {
             deliver(first)
         }

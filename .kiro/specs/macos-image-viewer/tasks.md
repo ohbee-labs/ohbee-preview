@@ -1,7 +1,9 @@
 # macOS Image Viewer — Value-Oriented Delivery Plan
 
 Status: Replanned for incremental user-visible delivery
-Current implementation scope: Folder Navigation MVP complete; Milestone 2 not started
+Current implementation scope: Milestone 2 complete; engineering phase gate approved
+Public baseline release: v1.0.0 — Stable MVP — 2026-07-31
+Release packaging: Complete — ad-hoc signed local artifact
 Sources of truth: `requirements.md`, `design.md`  
 Last updated: 2026-07-31
 
@@ -213,7 +215,7 @@ Manual acceptance confirmed:
 
 ## 5. Milestone 2 — Image Inspection Controls
 
-Status: Planned; not started
+Status: Completed 2026-07-31; stabilization and automated release gates pass
 Estimated overall MVP completion after milestone: 58%
 
 ### Objective
@@ -282,9 +284,29 @@ Make Ohbee Preview useful for inspecting image detail while keeping the browsing
 
 Release when a user can browse and inspect static images entirely by keyboard or trackpad without modifying source files.
 
+Automated implementation evidence:
+
+- Milestone 1 regression, pure viewport geometry, AppModel integration, native AppKit viewport, source-integrity, Debug, Release, sandbox, entitlement, and signing gates pass.
+- The navigation-centering regression is covered at the native NSScrollView/document-view seam across landscape, portrait, small, large, rotated, stale-origin, and resized replacements.
+- Launch Services declares Viewer/Alternate support for JPEG, PNG, HEIC, HEIF, GIF, and TIFF; default-handler guidance is user-invoked and never changes system preferences.
+- Folder-access fallback is shown only after the selected image is ready, remains non-modal, and does not repeat automatically after cancellation.
+- Manual GUI smoke checks pass: replacement centering across image shapes and sizes, zoom/pan/rotation followed by navigation, resize and full-screen navigation, Finder Open With and Change All, contextual folder grant/cancellation, no automatic association mutation, and no bookmark persistence.
+
+### Engineering review gate
+
+Senior code-quality review completed 2026-07-31. Behavior-preserving stabilization performed:
+
+- Cold-launch URL buffering now retains only the latest supported request, matching the existing stale-result policy.
+- ImageIO decodes directly from the authorized file URL instead of first allocating the entire compressed file as `Data`.
+- Equivalent viewport-scale publications are suppressed to avoid redundant SwiftUI invalidation.
+- The representative-sibling read probe now closes its file handle on every path.
+- Redundant viewport installation state was removed; canonical document/clip geometry remains the single centering model.
+
+All Milestone 1, Milestone 2, centering, source-integrity, Launch Services, Debug, Release, sandbox, entitlement, and signing checks pass after review. Engineering decision: **APPROVED WITH MINOR DEBT**. Milestone 3 remains unstarted and requires explicit product authorization.
+
 ## 6. Milestone 3 — Visual Folder Browsing
 
-Status: Blocked by Milestone 2
+Status: Planned; not started and not authorized
 Estimated overall MVP completion after milestone: 69%
 
 ### Objective
@@ -720,7 +742,11 @@ Mitigation:
 - Completed foundation: Implemented and published.
 - Folder Navigation MVP: Complete; automated, manual, build, signing, and release gates pass.
 - Overall MVP progress: 40%.
-- Milestone 2: Planned; not started.
+- Milestone 2: Complete; automated, manual GUI, engineering review, build, sandbox, entitlement, signing, and release gates pass.
+- Overall MVP progress: 58%.
+- Release v1.0.0 is packaged at `dist/Ohbee-Preview-1.0.0/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.0/Ohbee-Preview-1.0.0-macOS.zip`.
+- Packaged metadata verifies marketing version `1.0.0`, build `1`, bundle identifier `com.ohbee.preview`, and all six approved image UTIs.
+- Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
 - Later milestones: Planned only.
 - Post-MVP capabilities: Not authorized.
-- No production code may be added as part of this replanning change.
+- No Milestone 3 or later production code is authorized.

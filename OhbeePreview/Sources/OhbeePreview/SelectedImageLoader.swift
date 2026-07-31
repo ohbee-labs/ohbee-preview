@@ -1,11 +1,11 @@
 import AppKit
+import Darwin
 import Foundation
 import ImageIO
 import OhbeeStage2Core
 
 struct LoadedSelectedImage: @unchecked Sendable {
     let image: NSImage
-    let sourceURL: URL
 }
 
 enum SelectedImageLoadError: Error, Equatable {
@@ -32,6 +32,18 @@ enum SelectedImageLoadError: Error, Equatable {
 }
 
 enum SelectedImageLoader {
+    private static func hasNoReadPermissionBits(_ url: URL) -> Bool {
+        guard
+            let attributes = try? FileManager.default.attributesOfItem(
+                atPath: url.path
+            ),
+            let permissions = attributes[.posixPermissions] as? NSNumber
+        else {
+            return false
+        }
+        return permissions.intValue & 0o444 == 0
+    }
+
     static func load(url: URL) async throws -> LoadedSelectedImage {
         try await Task.detached(priority: .userInitiated) {
             let didStart = url.startAccessingSecurityScopedResource()
@@ -48,19 +60,26 @@ enum SelectedImageLoader {
             guard FileManager.default.fileExists(atPath: url.path) else {
                 throw SelectedImageLoadError.missing
             }
-            let data: Data
+            if hasNoReadPermissionBits(url) {
+                throw SelectedImageLoadError.permissionDenied
+            }
             do {
-                data = try Data(contentsOf: url)
+                let handle = try FileHandle(forReadingFrom: url)
+                try? handle.close()
             } catch {
                 let nsError = error as NSError
-                if nsError.domain == NSCocoaErrorDomain,
-                   nsError.code == NSFileReadNoPermissionError {
+                let isPermissionError =
+                    (nsError.domain == NSCocoaErrorDomain
+                        && nsError.code == NSFileReadNoPermissionError)
+                    || (nsError.domain == NSPOSIXErrorDomain
+                        && (nsError.code == EACCES || nsError.code == EPERM))
+                if isPermissionError {
                     throw SelectedImageLoadError.permissionDenied
                 }
                 throw SelectedImageLoadError.unreadable
             }
             guard
-                let source = CGImageSourceCreateWithData(data as CFData, nil),
+                let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                 let cgImage = CGImageSourceCreateImageAtIndex(
                     source,
                     0,
@@ -74,7 +93,7 @@ enum SelectedImageLoader {
                 size: NSSize(width: cgImage.width, height: cgImage.height)
             )
             try Task.checkCancellation()
-            return LoadedSelectedImage(image: image, sourceURL: url)
+            return LoadedSelectedImage(image: image)
         }.value
     }
 }
@@ -135,8 +154,8 @@ enum ParentAccessAssessor {
                     guard values.isRegularFile == true else { continue }
                     observedSupportedSibling = true
                     let handle = try FileHandle(forReadingFrom: candidate)
+                    defer { try? handle.close() }
                     _ = try handle.read(upToCount: 1)
-                    try handle.close()
                     return ParentAccessAssessment(
                         parentURL: parent,
                         canEnumerate: true,

@@ -6,6 +6,7 @@ import OSLog
 @MainActor
 final class AppModel: ObservableObject {
     struct DisplayedImage {
+        let sourceURL: URL
         let filename: String
         let image: NSImage
         let generation: UInt64
@@ -22,7 +23,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var loadState: LoadState = .empty
     @Published private(set) var authorization: FolderAuthorizationState = .notAssessed
     @Published private(set) var folderAccessMessage =
-        "Allow Folder Access to browse nearby images."
+        "Allow access to this folder to browse nearby images."
+    @Published private(set) var viewportState = ViewportState()
+    @Published private(set) var effectiveViewportScale: CGFloat = 1
     @Published private var navigationSnapshot: NavigationSnapshot?
 
     private let requestCoordinator = OpenRequestCoordinator()
@@ -32,6 +35,24 @@ final class AppModel: ObservableObject {
     private var decodeTask: Task<Void, Never>?
     private var discoveryTask: Task<Void, Never>?
     private var displayIntervals: [UInt64: OSSignpostIntervalState] = [:]
+    private var rotationsByURL: [URL: QuarterTurn] = [:]
+    private var rotationOrder: [URL] = []
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+
+    init() {
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical],
+            queue: .main
+        )
+        source.setEventHandler {
+            Task { @MainActor [weak self] in
+                guard self != nil else { return }
+                Diagnostics.recordMemoryPressure()
+            }
+        }
+        source.resume()
+        memoryPressureSource = source
+    }
 
     var canNavigatePrevious: Bool {
         navigationSnapshot?.canNavigatePrevious == true
@@ -50,11 +71,38 @@ final class AppModel: ObservableObject {
         currentURL != nil
     }
 
-    var showsFolderAccessAction: Bool {
-        if case .actionAvailable = authorization {
+    var canInspectImage: Bool {
+        guard displayedImage != nil else { return false }
+        if case .ready = loadState {
             return true
         }
         return false
+    }
+
+    var zoomPercentage: String {
+        "\(Int((effectiveViewportScale * 100).rounded()))%"
+    }
+
+    var showsFolderAccessAction: Bool {
+        guard displayedImage?.sourceURL == currentURL?.standardizedFileURL else {
+            return false
+        }
+        guard case .ready = loadState else { return false }
+        guard case .actionAvailable = authorization else { return false }
+        return true
+    }
+
+    var canManuallyRequestFolderAccess: Bool {
+        guard displayedImage?.sourceURL == currentURL?.standardizedFileURL else {
+            return false
+        }
+        guard case .ready = loadState else { return false }
+        switch authorization {
+        case .actionAvailable, .declinedForImageSession:
+            return true
+        default:
+            return false
+        }
     }
 
     func open(url: URL) {
@@ -66,9 +114,14 @@ final class AppModel: ObservableObject {
         currentURL = url
         navigationSnapshot = nil
         displayedImage = nil
+        rotationsByURL.removeAll()
+        rotationOrder.removeAll()
+        viewportState = ViewportState()
+        effectiveViewportScale = 1
         loadState = .loading(filename: url.lastPathComponent)
         authorization = .assessing
-        folderAccessMessage = "Allow Folder Access to browse nearby images."
+        folderAccessMessage =
+            "Allow access to this folder to browse nearby images."
         updateWindowTitle(filename: url.lastPathComponent)
 
         startDecode(url: url, sessionID: sessionID, isNavigation: false)
@@ -81,6 +134,107 @@ final class AppModel: ObservableObject {
 
     func navigateNext() {
         navigate(previous: false)
+    }
+
+    func fitToWindow() {
+        guard canInspectImage else { return }
+        let start = ContinuousClock.now
+        viewportState.resetToFit()
+        Diagnostics.recordViewportReset()
+        Diagnostics.recordZoomCommand(
+            name: "FitToWindow",
+            duration: start.duration(to: .now)
+        )
+    }
+
+    func showActualSize() {
+        guard canInspectImage else { return }
+        let start = ContinuousClock.now
+        viewportState.showActualSize()
+        Diagnostics.recordViewportReset()
+        Diagnostics.recordZoomCommand(
+            name: "ActualSize",
+            duration: start.duration(to: .now)
+        )
+    }
+
+    func zoomIn() {
+        guard canInspectImage else { return }
+        let start = ContinuousClock.now
+        let baseScale = viewportState.mode == .manual
+            ? viewportState.scale
+            : Double(effectiveViewportScale)
+        viewportState.zoomIn(from: baseScale)
+        Diagnostics.recordZoomCommand(
+            name: "ZoomIn",
+            duration: start.duration(to: .now)
+        )
+    }
+
+    func zoomOut() {
+        guard canInspectImage else { return }
+        let start = ContinuousClock.now
+        let baseScale = viewportState.mode == .manual
+            ? viewportState.scale
+            : Double(effectiveViewportScale)
+        viewportState.zoomOut(from: baseScale)
+        Diagnostics.recordZoomCommand(
+            name: "ZoomOut",
+            duration: start.duration(to: .now)
+        )
+    }
+
+    func rotateLeft() {
+        rotate(right: false)
+    }
+
+    func rotateRight() {
+        rotate(right: true)
+    }
+
+    func toggleFullScreen() {
+        guard hasImageSession, let window = NSApp.mainWindow else { return }
+        let start = ContinuousClock.now
+        window.toggleFullScreen(nil)
+        Diagnostics.recordFullscreenCommand(
+            duration: start.duration(to: .now)
+        )
+    }
+
+    func viewportEffectiveScaleChanged(_ scale: CGFloat) {
+        guard scale.isFinite, scale > 0 else {
+            Diagnostics.recordInvalidTransform()
+            return
+        }
+        let clamped = CGFloat(
+            ViewportState.clampedScale(Double(scale))
+        )
+        guard abs(effectiveViewportScale - clamped) > .ulpOfOne else { return }
+        effectiveViewportScale = clamped
+    }
+
+    func viewportPinchScaleChanged(_ scale: CGFloat) {
+        guard canInspectImage, scale.isFinite, scale > 0 else {
+            Diagnostics.recordInvalidTransform()
+            return
+        }
+        let clamped = ViewportState.clampedScale(Double(scale))
+        guard
+            viewportState.mode != .manual
+                || abs(viewportState.scale - clamped) > Double.ulpOfOne
+        else {
+            return
+        }
+        viewportState.mode = .manual
+        viewportState.scale = clamped
+    }
+
+    func viewportFitCalculated(duration: Duration) {
+        Diagnostics.recordFitCalculation(duration: duration)
+    }
+
+    func viewportRejectedInvalidTransform() {
+        Diagnostics.recordInvalidTransform()
     }
 
     func imageDidCommitToView(generation: UInt64) {
@@ -199,10 +353,17 @@ final class AppModel: ObservableObject {
             }
 
             displayedImage = DisplayedImage(
+                sourceURL: url.standardizedFileURL,
                 filename: url.lastPathComponent,
                 image: loaded.image,
                 generation: request.generation
             )
+            viewportState = ViewportState(
+                mode: .fit,
+                scale: 1,
+                rotation: rotationsByURL[url.standardizedFileURL] ?? .zero
+            )
+            effectiveViewportScale = 1
             loadState = .ready
             updateWindowTitle(filename: url.lastPathComponent)
         } catch is CancellationError {
@@ -347,6 +508,35 @@ final class AppModel: ObservableObject {
     ) {
         authorization = .actionAvailable
         Diagnostics.recordFolderAccessFailure(failure)
+    }
+
+    private func rotate(right: Bool) {
+        guard canInspectImage, let displayedImage else { return }
+        let start = ContinuousClock.now
+        let current = viewportState.rotation
+        let updated = right ? current.rotatedRight() : current.rotatedLeft()
+        viewportState.rotation = updated
+        storeRotation(updated, for: displayedImage.sourceURL)
+        Diagnostics.recordRotationCommand(
+            duration: start.duration(to: .now)
+        )
+    }
+
+    private func storeRotation(_ rotation: QuarterTurn, for url: URL) {
+        let normalized = url.standardizedFileURL
+        rotationsByURL[normalized] = rotation
+        rotationOrder.removeAll(where: { $0 == normalized })
+        if rotation == .zero {
+            rotationsByURL.removeValue(forKey: normalized)
+            return
+        }
+
+        rotationOrder.append(normalized)
+        let maximumRememberedRotations = 512
+        if rotationOrder.count > maximumRememberedRotations {
+            let evicted = rotationOrder.removeFirst()
+            rotationsByURL.removeValue(forKey: evicted)
+        }
     }
 
     private func updateWindowTitle(filename: String) {

@@ -62,6 +62,7 @@ xcrun swiftc \
   -module-name OhbeeStage2Core \
   "$PROJECT_DIR/Sources/OhbeeStage2Core/FolderNavigation.swift" \
   "$PROJECT_DIR/Sources/OhbeeStage2Core/Stage2State.swift" \
+  "$PROJECT_DIR/Sources/OhbeeStage2Core/ViewportGeometry.swift" \
   -emit-module-path "$CORE_MODULE_DIR/OhbeeStage2Core.swiftmodule" \
   -o "$CORE_MODULE_DIR/OhbeeStage2Core.o"
 
@@ -79,6 +80,7 @@ xcrun swiftc \
   "$PROJECT_DIR/Sources/OhbeePreview/ContentView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/FolderAccessController.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ImageInspectionView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/OhbeePreviewApp.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
   -o "$MACOS_DIR/OhbeePreview"

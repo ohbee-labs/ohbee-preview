@@ -389,6 +389,15 @@ Any active state may transition to `Access Lost`, which retains any already disp
 
 The product owner accepts that Finder-provided access to one image may or may not authorize parent enumeration and sibling reads. The standalone sandbox spike is cancelled and does not gate implementation.
 
+Opening one user-selected image therefore does not guarantee authority for its
+parent folder. If automatic enumeration fails after the image is displayed,
+Ohbee offers a secondary, non-modal action to select that exact folder. The
+choice is remembered only for the current process: persistent authorization and
+security-scoped bookmarks remain intentionally out of scope. Consequently,
+Ohbee cannot guarantee both persistent zero-prompt folder browsing and the
+current sandbox/no-bookmark policy. A direct-distribution, non-sandboxed variant
+is a possible future product decision, not part of the MVP architecture.
+
 Required flow:
 
 1. Start selected-file access and display the selected image whenever readable.

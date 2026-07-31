@@ -12,6 +12,7 @@ enum Diagnostics {
     static let folder = Logger(subsystem: subsystem, category: "folder")
     static let image = Logger(subsystem: subsystem, category: "image")
     static let navigation = Logger(subsystem: subsystem, category: "navigation")
+    static let viewport = Logger(subsystem: subsystem, category: "viewport")
 
     static let lifecycleSignposter = OSSignposter(
         subsystem: subsystem,
@@ -37,12 +38,19 @@ enum Diagnostics {
         subsystem: subsystem,
         category: "navigation"
     )
+    static let viewportSignposter = OSSignposter(
+        subsystem: subsystem,
+        category: "viewport"
+    )
 
     private static let applicationEnteredAt = ContinuousClock.now
     private static var cancelledDecodeCount = 0
     private static var staleResultCount = 0
     private static var folderAccessFailureCount = 0
     private static var decodeFailureCount = 0
+    private static var viewportResetCount = 0
+    private static var invalidTransformCount = 0
+    private static var memoryPressureCount = 0
 
     static func markApplicationEntry() {
         _ = applicationEnteredAt
@@ -128,5 +136,63 @@ enum Diagnostics {
             category=\(privacySafeError(error), privacy: .public)
             """
         )
+    }
+
+    static func recordFitCalculation(duration: Duration) {
+        viewport.debug(
+            "Fit calculated duration=\(String(describing: duration), privacy: .public)"
+        )
+        viewportSignposter.emitEvent(
+            "FitCalculated",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordZoomCommand(name: String, duration: Duration) {
+        viewport.notice(
+            """
+            Zoom command=\(name, privacy: .public) \
+            duration=\(String(describing: duration), privacy: .public)
+            """
+        )
+        viewportSignposter.emitEvent(
+            "ZoomCommand",
+            "command=\(name) duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordRotationCommand(duration: Duration) {
+        viewport.notice(
+            "Rotation command duration=\(String(describing: duration), privacy: .public)"
+        )
+        viewportSignposter.emitEvent(
+            "RotationCommand",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordFullscreenCommand(duration: Duration) {
+        viewport.notice(
+            "Fullscreen command duration=\(String(describing: duration), privacy: .public)"
+        )
+        viewportSignposter.emitEvent(
+            "FullscreenCommand",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordViewportReset() {
+        viewportResetCount += 1
+        viewport.debug("Viewport reset total=\(viewportResetCount)")
+    }
+
+    static func recordInvalidTransform() {
+        invalidTransformCount += 1
+        viewport.error("Invalid transform rejected total=\(invalidTransformCount)")
+    }
+
+    static func recordMemoryPressure() {
+        memoryPressureCount += 1
+        viewport.notice("Memory pressure observed total=\(memoryPressureCount)")
     }
 }

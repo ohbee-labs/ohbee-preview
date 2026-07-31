@@ -134,6 +134,128 @@ private func testFolderNavigation() async throws {
     try expect(unmatched == nil, "Unmatched image created a folder session")
 }
 
+private func testViewportGeometry() throws {
+    let viewport = ViewportDimensions(width: 1_000, height: 800)
+    let landscape = ViewportDimensions(width: 4_000, height: 2_000)
+    let portrait = ViewportDimensions(width: 2_000, height: 4_000)
+    let small = ViewportDimensions(width: 800, height: 600)
+
+    try expect(
+        abs(
+            ViewportGeometry.fitScale(
+                imagePixels: landscape,
+                viewportPoints: viewport,
+                backingScale: 2,
+                rotation: .zero
+            ) - 0.5
+        ) < 0.0001,
+        "Landscape fit scale failed"
+    )
+    try expect(
+        abs(
+            ViewportGeometry.fitScale(
+                imagePixels: portrait,
+                viewportPoints: viewport,
+                backingScale: 2,
+                rotation: .zero
+            ) - 0.4
+        ) < 0.0001,
+        "Portrait fit scale failed"
+    )
+    try expect(
+        ViewportGeometry.fitScale(
+            imagePixels: small,
+            viewportPoints: viewport,
+            backingScale: 2,
+            rotation: .zero
+        ) == 1,
+        "Fit upscaled an undersized image"
+    )
+    try expect(
+        abs(
+            ViewportGeometry.fitScale(
+                imagePixels: landscape,
+                viewportPoints: viewport,
+                backingScale: 2,
+                rotation: .right90
+            ) - 0.4
+        ) < 0.0001,
+        "Rotated fit scale failed"
+    )
+
+    var state = ViewportState()
+    state.showActualSize()
+    try expect(state.mode == .actualSize && state.scale == 1, "Actual Size failed")
+    state.zoomIn(from: 1)
+    try expect(state.mode == .manual && state.scale == 1.25, "Zoom In failed")
+    state.zoomOut(from: state.scale)
+    try expect(state.scale == 1, "Zoom Out failed")
+    state.resetToFit()
+    try expect(state.mode == .fit && state.scale == 1, "Fit reset failed")
+    try expect(
+        ViewportState.clampedScale(0.0001) == ViewportState.minimumScale,
+        "Minimum zoom clamp failed"
+    )
+    try expect(
+        ViewportState.clampedScale(1_000) == ViewportState.maximumScale,
+        "Maximum zoom clamp failed"
+    )
+
+    var rotation = QuarterTurn.zero
+    for _ in 0..<4 {
+        rotation = rotation.rotatedRight()
+    }
+    try expect(rotation == .zero, "Four right rotations did not normalize")
+    for _ in 0..<4 {
+        rotation = rotation.rotatedLeft()
+    }
+    try expect(rotation == .zero, "Four left rotations did not normalize")
+
+    try expect(
+        ViewportGeometry.panBounds(
+            imagePixels: landscape,
+            viewportPoints: viewport,
+            backingScale: 2,
+            scale: 1,
+            rotation: .zero
+        ) == PanBounds(horizontal: 500, vertical: 100),
+        "Oversized pan bounds failed"
+    )
+    let centered = ViewportGeometry.centeredOrigin(
+        contentSize: ViewportDimensions(width: 400, height: 300),
+        viewportSize: viewport
+    )
+    try expect(
+        centered.x == 300 && centered.y == 250,
+        "Undersized centering failed"
+    )
+    let clampedPan = ViewportGeometry.clampedPanOffset(
+        ViewportPoint(x: 900, y: -500),
+        bounds: PanBounds(horizontal: 500, vertical: 100)
+    )
+    try expect(
+        clampedPan.x == 500 && clampedPan.y == -100,
+        "Pan clamping failed"
+    )
+
+    let resized = ViewportGeometry.fitScale(
+        imagePixels: landscape,
+        viewportPoints: ViewportDimensions(width: 1_600, height: 1_200),
+        backingScale: 2,
+        rotation: .zero
+    )
+    try expect(abs(resized - 0.8) < 0.0001, "Window resize fit failed")
+
+    var staleState = ViewportState()
+    staleState.zoomIn(from: 1)
+    staleState.rotation = .right90
+    let currentState = ViewportState()
+    try expect(
+        currentState.mode == .fit && currentState.rotation == .zero,
+        "Viewport state leaked between image requests"
+    )
+}
+
 @main
 enum Stage2CoreCLITests {
     static func main() async throws {
@@ -193,6 +315,8 @@ enum Stage2CoreCLITests {
 
         try await testFolderNavigation()
         try await testDelayedLatestRequestWins()
+        try testViewportGeometry()
         print("PASS: 19 Folder Navigation MVP core checks")
+        print("PASS: 17 Image Inspection Controls geometry checks")
     }
 }
