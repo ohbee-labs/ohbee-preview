@@ -1,864 +1,713 @@
-# macOS Image Viewer — Delivery Plan
+# macOS Image Viewer — Value-Oriented Delivery Plan
 
-Status: Production implementation authorized by product-owner risk acceptance  
-Current implementation scope: Stage 2 only  
+Status: Replanned for incremental user-visible delivery
+Current implementation scope: Foundation complete; Folder Navigation MVP next
 Sources of truth: `requirements.md`, `design.md`  
 Last updated: 2026-07-31
 
-## 1. Plan rules
+## 1. Delivery principles
 
-- Execute production tasks in order beginning with Task 2.
-- Task 1 standalone sandbox spike is cancelled and waived by product-owner decision.
-- Validate folder access incrementally through the integration acceptance gate.
-- Do not add Post-MVP capabilities.
-- Do not add a database, persistent image index, plug-in system, cloud layer, generic media framework, or unapproved third-party dependency.
-- Use release-like signing and sandbox settings for access tests.
-- Every task is complete only when its deliverables, acceptance criteria, tests, and completion gate are satisfied.
+- Each milestone must be independently buildable, testable, and releasable.
+- Each milestone must produce a user-visible improvement.
+- Infrastructure is implemented only inside the milestone whose user feature needs it.
+- A milestone is complete only when its behavior works in a signed sandboxed build.
+- The selected image must remain the highest-priority work.
+- No blocking file I/O, enumeration, sorting, or image decode may run on the main actor.
+- Cancellation is an efficiency mechanism; session, item, and generation identity checks are the correctness boundary.
+- Logging and signposts remain local, lightweight, and privacy-preserving.
+- Release builds never log full paths, filenames, image contents, EXIF values, user identifiers, or bookmark data.
+- Do not add Post-MVP capabilities, speculative abstractions, a database, persistent image index, cloud layer, analytics, generic media framework, or unapproved dependency.
 
-## 2. Task dependency flow
+## 2. Delivery sequence
 
 ```text
-1 Sandbox spike (cancelled/waived)
+Completed Foundation
     |
     v
-2 App shell and lifecycle (authorized)
+1 Folder Navigation MVP
+    |
     v
-3 Static rendering
+2 Image Inspection Controls
+    |
     v
-4 Folder discovery/navigation
+3 Visual Folder Browsing
+    |
     v
-5 Viewport/full screen
+4 Animated Image Viewing
+    |
     v
-6 Thumbnails
+5 Safe Finder File Actions
+    |
     v
-7 GIF
+6 Accessible Native Experience
+    |
     v
-8 Finder actions/Trash
-    v
-9 Accessibility/keyboard
-    v
-10 Performance/memory/resilience
-    v
-11 Packaging/signing/release
+7 Large-Folder Reliability and MVP Release
 ```
 
-Tasks may be subdivided during implementation planning, but their completion gates and scope may not be weakened without approval.
+Later milestones may begin only after the preceding milestone has a releasable build. Defects found in an earlier milestone take priority over adding the next feature.
 
-## 3. Task 1 — Sandbox and Finder access spike
-
-Status: Cancelled and waived by product-owner decision  
-Completion: Not required
-
-The unresolved Finder single-file parent-access risk is accepted. No standalone spike or findings document blocks production work.
-
-Folder access is validated incrementally through the integration acceptance gate:
-
-- Display the readable selected image first.
-- Attempt parent enumeration and sibling access without prompting.
-- Use one non-blocking, user-invoked folder-picker fallback after failure.
-- Retain authorization and decline state only for the current application session.
-- Never create or restore security-scoped bookmarks.
-- Cover cold/warm Finder Open With, cancellation, authorization reuse, later Previous/Next and Trash integration, and required storage locations.
-
-## 4. Task 2 — Application shell and Finder-open lifecycle
+## 3. Completed foundation — Application shell and Finder-open lifecycle
 
 Status: Completed 2026-07-31
+Estimated overall MVP completion: 15%
+
+### User-visible outcome
+
+- Opening one supported image from Finder activates one reusable Ohbee Preview window.
+- The selected image has a non-blocking loading, ready, or failure presentation.
+- If parent-folder access is unavailable, the user can explicitly choose Allow Folder Access without losing the selected image.
+
+### Delivered foundation
+
+- Native macOS 14 SwiftUI application with limited AppKit integration.
+- Finder/Open With cold- and warm-open handling.
+- First-supported-URL policy for unexpected multi-URL events.
+- Replacement session ownership and stale-result rejection.
+- Selected-file security-scope handling.
+- Initial parent-access assessment and same-session folder-picker fallback.
+- Same-session authorization and decline state; no bookmark persistence.
+- Eagerly materialized selected-image presentation before selected-file scope closure.
+- Release-safe `os.Logger` categories and initial `OSSignposter` intervals.
+- Debug, Release, Profiling, and Benchmark build configurations.
+- App Sandbox and user-selected read/write entitlements.
+- Stage 2 core and integration checks.
+
+### Accepted limitation
+
+The standalone sandbox spike was waived by the product owner. Folder access must therefore continue to be validated in every affected milestone using signed sandboxed builds and the folder-picker fallback must remain available.
+
+## 4. Milestone 1 — Folder Navigation MVP
+
+Status: Ready for implementation
+Estimated overall MVP completion after milestone: 40%
+
+### Objective
+
+Deliver the first version of Ohbee Preview that users can actually use every day: open one image from Finder and browse the supported images in the same folder.
+
+### User-visible outcome
+
+- The selected image appears immediately or shows a truthful loading/error state.
+- Supported sibling images are discovered from the same folder.
+- Images are ordered by natural filename.
+- Left/Right and native Previous/Next commands navigate the folder.
+- Navigation stops predictably at the first and last image.
+- Rapid navigation settles on the final requested image without stale-image flashes.
+- If automatic folder access fails, the existing user-invoked folder authorization action restores folder browsing.
+
+### Included scope
+
+- Display the selected static image.
+- JPEG, PNG, HEIC/HEIF, GIF first frame, and default TIFF image presentation.
+- Non-recursive sibling discovery.
+- Hidden-file, directory, package, and unsupported-file filtering.
+- Natural filename sorting with a deterministic tie-breaker.
+- In-memory session-only navigation entries.
+- Stable selected-item identity during discovery and sorting.
+- Previous and Next commands.
+- Left Arrow and Right Arrow keyboard navigation.
+- Loading and per-item error states.
+- Cancellation of obsolete enumeration and decode work.
+- Session, item, and generation validation before presentation updates.
+- First/last boundary state with no wrapping.
+- Same-session folder authorization fallback.
+- Minimum privacy-safe instrumentation needed to measure open, enumeration, sorting, decode, display, navigation, cancellation, stale-result rejection, and permission/decode failures.
+- VoiceOver labels and enabled/disabled command states for the controls introduced in this milestone.
+
+### Explicit exclusions
+
+- Image cache optimization.
+- Thumbnail strip.
+- Neighbor prefetch.
+- GIF animation.
+- Rotation.
+- Zoom.
+- Pan.
+- Full screen.
+- Move to Trash.
+- Reveal in Finder.
+- Advanced performance optimization.
+- Persistent folder permissions or security-scoped bookmarks.
+- Folder monitoring or automatic refresh.
+- Subfolder traversal.
 
 ### Requirement references
 
-- FR-001–004
-- FR-027
-- FR-031
-- FR-040
-- NFR-001–004
-- PERF-001
-
-### Design references
-
-- Sections 5–7
-- Sections 16–17
-- Sections 21–22
-- ADR-001, ADR-003, ADR-005
-
-### Deliverables
-
-- Native macOS 14 application shell.
-- One reusable primary viewer window.
-- Cold/warm single-image open handling using the approved access model.
-- Session replacement and cancellation ownership.
-- Initial authorization state: assessing, automatic access available, folder action available, picker presented, authorized for session, declined for image session, and access failed.
-- Non-blocking Allow Folder Access action and user-invoked `NSOpenPanel` shell; complete sibling enumeration remains Task 4.
-- Same-session in-memory authorization/decline tracking with no bookmark persistence.
-- Native menu command surface and Dark Mode shell.
-- Immediate loading-state presentation.
-- `os.Logger` lifecycle and Finder-open categories using Release-safe privacy rules.
-- `OSSignposter` intervals for startup-to-window, startup-to-first-pixels, open-to-window, and open-to-first-pixels.
-- Opaque session/request correlation identifiers.
-- Debug-only diagnostics overlay shell, disabled by default and compiled out of Release.
-
-### Acceptance criteria
-
-- Finder Open With activates the single primary viewer window.
-- A warm open replaces the session without opening another viewer window.
-- The window/loading state responds within PERF-001.
-- Old-session results cannot update the new session.
-- A readable selected image remains visible when parent access assessment fails.
-- Folder picker never opens automatically and cancellation does not repeat the action for the same image session.
-- No security-scoped bookmark API, entitlement, storage, control, or diagnostic exists.
-- No application-originated network request occurs.
-
-### Required tests
-
-- Cold/warm integration tests.
-- Repeated replacement-open concurrency test.
-- Main-thread responsiveness test.
-- Dark Mode smoke test.
-- Offline/network inspection test.
-- Logger privacy test proving Release records contain no full path or filename.
-- Startup/Finder signpost pairing and endpoint tests.
-- Configuration tests proving the diagnostics overlay is absent from Release.
-- Authorization-state transition and no-repeat unit tests.
-- Folder-picker explicit-invocation and cancellation integration tests where automation permits.
-
-### Dependencies
-
-- Product-owner risk acceptance recorded in `requirements.md` and `design.md`.
-- Approved production access strategy in Design Sections 8–9.
-
-### Completion gate
-
-The lifecycle vertical slice passes FR-001–003, initial FR-005–006 behavior, old-session isolation, no-automatic-prompt, and no-bookmark tests in a signed sandboxed build.
-
-Completion evidence:
-
-- Debug and Release builds compile and pass ad-hoc code-sign verification with App Sandbox and user-selected read/write entitlements.
-- Four Stage 2 state/coordinator unit tests pass.
-- Cold and warm Open With integration requests reuse one process and primary viewer session.
-- The selected image uses a non-blocking loading state and temporary minimal presentation.
-- Authorization assessment and the folder-picker fallback are non-blocking and session-only.
-- No bookmark entitlement, API, persistence, UI, or diagnostic control is present.
-- Stage 3 remains unimplemented and unauthorized.
-
-## 5. Task 3 — Static image rendering
-
-Status: Blocked by Tasks 1–2
-
-### Requirement references
-
-- FR-004
-- FR-011
-- FR-031–035
-- FR-039
-- NFR-002, NFR-003, NFR-005, NFR-007
-- PERF-002, PERF-004
-
-### Design references
-
-- Sections 6.6, 11–12
-- Sections 15–16
-- Section 18 error taxonomy
-- ADR-004–007
-
-### Deliverables
-
-- Full-image pipeline for JPEG, PNG, HEIC/HEIF, and default TIFF image.
-- Viewport-appropriate preview loading.
-- Platform orientation, alpha, and color handling.
-- Typed loading, unsupported, permission, missing, unreadable, decode, provider, and resource-limit results.
-- Very-large-image safety checks and fit-preview degradation.
-- Cancellation and identity/generation validation.
-- Image property-read, preview-decode, detail-decode, display-latency, cancellation, stale-result, and typed-failure instrumentation.
-
-### Acceptance criteria
-
-- Representative static fixtures display correctly.
-- Selected-image loading occurs off the main actor.
-- Corrupt, zero-byte, deceptive-extension, missing, and oversized fixtures fail individually.
-- Late static-image results cannot replace the current target.
-- Viewing does not modify source bytes or metadata.
-- PERF-002 and PERF-004 pass on baseline fixtures.
-
-### Required tests
-
-- Unit tests for error mapping and result validation.
-- Supported-format fixture tests.
-- Corrupt and hostile fixture tests.
-- Late-completion concurrency test.
-- File Provider pending/failure integration tests where available.
-- Hash/metadata integrity tests.
-- Instruments main-thread and allocation checks.
-- Signpost pairing tests for success, cancellation, and failure.
-- Decode/permission failure category counter tests.
-
-### Dependencies
-
-- Task 2 lifecycle/session.
-- Task 1 approved access model.
-
-### Completion gate
-
-All static format, failure-isolation, cancellation, integrity, and initial latency tests pass.
-
-## 6. Task 4 — Folder enumeration and navigation
-
-Status: Blocked by Tasks 1–3
-
-### Requirement references
-
-- FR-005–010
+- FR-001–011
 - FR-013–016
 - FR-022
-- FR-033
-- NFR-002, NFR-003, NFR-006
-- PERF-003–005, PERF-008
-- AC-002–004, AC-012
+- FR-027
+- FR-031–035
+- FR-036–040 as applicable to included actions
+- NFR-001–007
+- PERF-001–005
+- PERF-008
+- PRIV-001–005
+- AC-001–006
+- AC-012 and AC-014 at milestone-appropriate scale
 
 ### Design references
 
-- Sections 6.3–6.5
-- Sections 8–11
-- Sections 15–16
-- ADR-002, ADR-004, ADR-005, ADR-009, ADR-010
+- Sections 6.1–6.6 and 6.13
+- Sections 7–12
+- Sections 15–18
+- ADR-001–007, ADR-009, ADR-010
 
-### Deliverables
+### Implementation work
 
-- Folder authorization state machine using the approved access strategy and integration observations.
-- File-only fallback and approved folder authorization action.
-- Non-recursive asynchronous enumeration.
-- Hidden/package/unsupported filtering.
-- Natural filename sorting.
-- In-memory navigation index.
-- Stable current selection across incremental snapshots.
-- Left/Right and command navigation with no wrapping.
-- Bounded neighbor prefetch.
-- Enumeration, first-batch, natural-sort, navigation, cancellation, and stale-result signposts/counters.
+1. Replace the temporary selected-image presentation with the minimum production static-image result and typed failure states.
+2. Keep selected-image decode independent from and higher priority than folder discovery.
+3. Complete the folder authorization state transition from automatic access or explicit folder selection into active discovery.
+4. Enumerate immediate folder entries asynchronously using only inexpensive resource properties.
+5. Filter hidden files, directories, packages, and unsupported candidates.
+6. Sort candidates using localized, case-insensitive, numeric-aware filename comparison plus deterministic tie-breaking.
+7. Build a lightweight, in-memory navigation snapshot that preserves the selected file by identity.
+8. Add Previous/Next intents, Left/Right shortcuts, menus, boundary state, filename, and position when reliable.
+9. On navigation, update the target generation, cancel obsolete work, show loading, and decode only the current target.
+10. Reject late enumeration and decode results whose session, item, or generation is stale.
+11. Keep folder-picker cancellation non-destructive and do not reopen it automatically.
+12. Add only the signposts, counters, and failure categories required to verify this user journey.
 
 ### Acceptance criteria
 
-- AC-002, AC-003, and AC-004 pass.
-- Hidden and child-folder images are excluded.
-- Exact Finder view ordering is not attempted.
-- Selected-image display does not wait for enumeration.
-- Current file remains stable when earlier-sorting entries arrive.
-- First/last command states are correct.
-- 20-command navigation settles on the final target.
+- **Given** a folder containing naturally named supported images, **when** one image is opened from Finder, **then** the selected image is displayed and Previous/Next follows natural filename order.
+- **Given** automatic parent access succeeds, **when** discovery completes, **then** no permission panel is shown.
+- **Given** automatic parent access fails, **when** the user grants the exact parent folder, **then** the current image remains selected and navigation becomes available.
+- **Given** hidden images, child folders, packages, and unsupported files, **when** discovery runs, **then** none becomes a navigation item.
+- **Given** the first or last image, **when** navigation state is shown, **then** the unavailable direction is disabled and navigation does not wrap.
+- **Given** twenty rapid alternating navigation commands, **when** work settles, **then** the final requested image is displayed and no older result replaces it.
+- **Given** a corrupt or unreadable current item, **when** decode fails, **then** an error is shown for that item and navigation to a known neighbor remains possible.
+- **Given** an image that is slow to materialize, **when** the user navigates away, **then** the obsolete result cannot update the active presentation.
+- **Given** a signed Release build, **when** the full journey is performed, **then** logs contain no full path, filename, content, EXIF value, user identifier, or bookmark data.
 
 ### Required tests
 
-- Natural-sort unit tests with case, numeric, locale, and tie fixtures.
-- Filtering tests.
-- Stable-selection tests.
-- Navigation boundary tests.
-- 1K/10K/100K enumeration benchmarks.
-- Access loss during enumeration.
-- Rapid navigation and stale-result tests.
-- Counter assertions for enumeration/navigation cancellations and stale-result rejection.
+- Static fixtures for JPEG, PNG with alpha, HEIC/HEIF, GIF first frame, and TIFF.
+- Corrupt, zero-byte, deceptive-extension, missing, unreadable, and provider-failure cases.
+- Natural-sort unit tests covering numeric names, case, locale, and deterministic ties.
+- Hidden, package, directory, subfolder, and unsupported filtering tests.
+- Stable-selected-item tests while the sorted snapshot changes.
+- Previous/Next boundary and no-wrapping tests.
+- Rapid-navigation cancellation and stale-result tests.
+- Finder cold/warm open and replacement-session tests.
+- Automatic access, explicit folder grant, wrong-folder selection, cancellation, and same-session authorization-reuse tests.
+- Main-thread responsiveness check for enumeration, sorting, and decode.
+- Signed sandbox smoke tests for local folder, Desktop, Documents, Downloads, Pictures, external drive, iCloud Drive, and available File Provider storage.
+- Signpost pairing, counter correctness, and Release logger privacy tests for this journey.
 
-### Dependencies
+### Release gate
 
-- Tasks 1–3.
+Ship a signed sandboxed build to internal users only when the complete Finder-open-to-folder-navigation journey passes without thumbnails, cache optimization, prefetch, or viewport controls.
 
-### Completion gate
+## 5. Milestone 2 — Image Inspection Controls
 
-The core Finder-to-sibling-navigation vertical slice passes on authorized local folders and approved fallback flow, with no main-thread enumeration or decode.
+Status: Blocked by Milestone 1
+Estimated overall MVP completion after milestone: 58%
 
-## 7. Task 5 — Zoom, pan, rotation, and full screen
+### Objective
 
-Status: Blocked by Tasks 3–4
+Make Ohbee Preview useful for inspecting image detail while keeping the browsing model simple.
+
+### User-visible outcome
+
+- Images fit the window without unwanted upscaling.
+- Users can switch to actual size, zoom, and pan.
+- Session-only rotation helps inspect incorrectly oriented content without modifying files.
+- Native full screen provides a focused viewing mode.
+- Navigation remains available through keyboard commands and resets viewport state predictably.
+
+### Included scope
+
+- Fit to window.
+- Actual-size view.
+- Continuous trackpad pinch and bounded keyboard/menu zoom.
+- Constrained pan for zoomed content.
+- Session-only 90-degree left/right rotation.
+- Reset zoom and pan to fit after navigation.
+- Native macOS full screen.
+- Mouse-wheel and trackpad gesture arbitration defined by requirements.
+- Viewport-specific accessibility, menu state, signposts, and interaction tests.
+- Resource-appropriate detail decode only when actual-size inspection requires it.
+
+### Explicit exclusions
+
+- Thumbnail strip.
+- GIF animation.
+- Persistent edits or rotation saving.
+- Reveal in Finder and Trash.
+- General-purpose render engine or editing canvas.
 
 ### Requirement references
 
 - FR-004
 - FR-017–024
-- FR-038, FR-039
-- NFR-008
+- FR-027
+- FR-034
+- FR-036–039
+- NFR-003, NFR-005, NFR-008
 - AC-007, AC-008
-
-### Design references
-
-- Sections 6.9
-- Section 14
-- Sections 16–17
-- ADR-008, ADR-011, ADR-012
-
-### Deliverables
-
-- Fit without upscaling.
-- Actual-size mode.
-- Continuous pinch and bounded stepped keyboard zoom.
-- Constrained pointer and scroll panning.
-- Fit-only horizontal navigation gesture.
-- Session-only per-image 90-degree rotation.
-- Reset-to-fit on navigation.
-- Native macOS full screen.
-- SwiftUI viewport or a documented, measured AppKit adapter.
 
 ### Acceptance criteria
 
-- FR-017–024 acceptance criteria pass.
+- Fit, actual size, zoom, pan, rotation, and full screen work through native commands.
 - Mouse wheel does not zoom or navigate.
-- Zoomed horizontal scrolling never navigates.
-- Navigation resets zoom/pan but preserves session rotation per item.
-- Source files remain unchanged.
-- Full screen preserves the active session.
-- Reduce Motion behavior remains possible without separate interaction logic.
+- Zoomed horizontal movement pans and never navigates.
+- Navigation resets zoom/pan to fit while retaining session-only per-item rotation.
+- Source bytes and metadata remain unchanged.
+- Full screen preserves the active folder session and current image.
 
 ### Required tests
 
-- Viewport geometry unit tests.
-- Backing-scale actual-size tests.
+- Viewport geometry and backing-scale tests.
 - Gesture arbitration UI tests.
-- Multi-display integration test.
-- Rotation/file-integrity test.
-- Full-screen lifecycle test.
-- Frame-rate and main-thread instrumentation.
+- Keyboard-only control tests.
+- Multi-display and full-screen lifecycle tests.
+- Rotation and source-integrity tests.
+- Large-image detail failure that preserves fit presentation and navigation.
+- Viewport signpost pairing and main-thread frame-stall checks.
 
-### Dependencies
+### Release gate
 
-- Static presentation from Task 3.
-- Navigation from Task 4.
+Release when a user can browse and inspect static images entirely by keyboard or trackpad without modifying source files.
 
-### Completion gate
+## 6. Milestone 3 — Visual Folder Browsing
 
-The viewport passes interaction correctness, integrity, accessibility hooks, and baseline smoothness measurements. Any AppKit use is documented as a measured necessity.
+Status: Blocked by Milestone 2
+Estimated overall MVP completion after milestone: 69%
 
-## 8. Task 6 — Thumbnail strip
+### Objective
 
-Status: Blocked by Tasks 4–5
+Help users recognize and jump to nearby images visually without turning the application into a photo manager.
+
+### User-visible outcome
+
+- A hidden-by-default thumbnail strip can be toggled.
+- Visible thumbnails load progressively.
+- Selecting a thumbnail changes the current image.
+- Large folders do not freeze the strip or trigger all thumbnails at once.
+
+### Included scope
+
+- Optional thumbnail strip.
+- Persisted strip visibility preference only.
+- Virtualized visible/nearby thumbnail request window.
+- Bounded thumbnail work and memory cost.
+- Placeholder and isolated thumbnail failure.
+- Keyboard and VoiceOver thumbnail selection.
+- Thumbnail latency, request, cancellation, hit/miss, insertion, eviction, cost, and stale-result instrumentation.
+
+### Explicit exclusions
+
+- Persistent thumbnail database.
+- Albums, favorites, tagging, drag reordering, or batch selection.
+- Full-image neighbor prefetch.
 
 ### Requirement references
 
 - FR-025, FR-026
-- FR-037
+- FR-027
+- FR-036–038
 - NFR-003, NFR-005
 - PERF-006, PERF-007
 - AC-009
 
-### Design references
-
-- Sections 6.8
-- Section 13
-- Sections 15–16
-- ADR-007, ADR-008
-
-### Deliverables
-
-- Hidden-by-default, toggleable thumbnail strip.
-- Persisted visibility preference only.
-- Virtualized visible/nearby request window.
-- Bounded thumbnail cache.
-- Selection/current-state behavior.
-- Placeholders and isolated thumbnail failure.
-- Request/cancellation/cache instrumentation.
-- Thumbnail latency signposts and cache hit, miss, insertion, eviction, cost, cancellation, and stale-result counters.
-
 ### Acceptance criteria
 
-- Relaunch restores visibility.
-- Thumbnail selection navigates.
-- A 10,000-item strip does not request all thumbnails.
-- Rapid scrolling cancels obsolete requests.
-- Thumbnail failure does not affect full-image navigation.
+- The strip is off by default and its visibility choice survives relaunch.
+- A 10,000-item folder requests only visible and nearby thumbnails.
+- Rapid scrolling cancels obsolete work.
+- Thumbnail failure never blocks primary image navigation.
+- Keyboard and VoiceOver users can select a thumbnail and understand selection.
 
 ### Required tests
 
-- Preference test.
-- Virtualization request-count test.
-- Rapid-scroll cancellation test.
-- Cache cost/eviction test.
-- Thumbnail failure test.
-- Keyboard and accessibility selection hooks.
-- 10K/100K memory observation.
-- Cache counter correctness and Release privacy tests.
+- Visibility preference test.
+- Virtualization and request-count tests.
+- Rapid-scroll cancellation and stale-result tests.
+- Bounded-cost and eviction tests.
+- Thumbnail failure isolation.
+- Keyboard, focus, and VoiceOver assertions.
+- 10K/100K request-volume and memory observation.
 
-### Dependencies
+### Release gate
 
-- Navigation index from Task 4.
-- Viewport selection from Task 5.
+Release when the optional strip adds visual navigation without changing the lightweight folder-viewer model or making work proportional to total folder size.
 
-### Completion gate
+## 7. Milestone 4 — Animated Image Viewing
 
-AC-009 passes and thumbnail work remains proportional to the visible window rather than folder size.
+Status: Blocked by Milestone 3
+Estimated overall MVP completion after milestone: 76%
 
-## 9. Task 7 — GIF playback
+### Objective
 
-Status: Blocked by Tasks 3–6
+Display ordinary animated GIFs correctly without allowing animation work to degrade navigation.
+
+### User-visible outcome
+
+- Animated GIFs play with valid timing.
+- Playback pauses when the item is no longer current or visible.
+- Leaving a GIF remains immediate.
+- Unsafe GIFs degrade to a safe state rather than destabilizing the app.
+
+### Included scope
+
+- GIF property and frame validation.
+- Bounded frame working set.
+- Timing normalization.
+- Pause/resume based on current item and visibility.
+- Immediate cancellation on navigation/session replacement.
+- Safe first-frame or resource-limit fallback.
+- GIF-specific startup, failure, frame pacing, cancellation, and memory instrumentation.
+
+### Explicit exclusions
+
+- Video, Live Photos, editing, export, or generic media playback.
 
 ### Requirement references
 
 - FR-012
 - FR-015
 - FR-031, FR-032, FR-034
+- FR-036–040
 - NFR-005, NFR-007, NFR-008
-
-### Design references
-
-- Sections 6.10
-- Section 12.3
-- Sections 15–16
-- ADR-004–007
-
-### Deliverables
-
-- Safe animated-GIF property and frame handling.
-- Bounded frame working set.
-- Valid timing playback and unsafe-timing normalization.
-- Pause when no longer current or visible.
-- Cancellation on navigation/session replacement.
-- Resource-limit degradation.
-- GIF-specific memory and frame instrumentation.
-- GIF startup/decode, failure, pause, cancellation, and peak working-set measurements.
 
 ### Acceptance criteria
 
-- Ordinary animated GIFs play.
-- Leaving the item pauses playback.
-- Rapid navigation is never delayed by GIF frame work.
-- Pathological GIFs remain within approved safety policy or degrade with a useful state.
-- Memory pressure releases discardable frames.
+- Ordinary valid GIFs animate with reasonable timing.
+- Navigating away stops GIF work promptly.
+- Rapid Previous/Next remains deterministic while GIFs are present.
+- Corrupt, excessive, or malformed GIFs produce a useful safe result.
+- Memory pressure releases discardable frame data.
 
 ### Required tests
 
 - Static and animated GIF fixtures.
-- Long, large, high-frame-count, malformed-timing, corrupt, and truncated fixtures.
-- Navigation cancellation test.
-- Window occlusion/current-item lifecycle test.
-- Memory pressure test.
-- CPU, frame pacing, and resident-memory measurements.
+- Long, large, high-frame-count, corrupt, truncated, and malformed-timing fixtures.
+- Navigation/session cancellation tests.
+- Window visibility lifecycle test.
+- CPU, frame pacing, and peak-memory measurements.
 
-### Dependencies
+### Release gate
 
-- Full-image pipeline from Task 3.
-- Navigation from Task 4.
-- Viewport from Task 5.
-- Final GIF memory limits may depend on Task 10 calibration.
+Release when GIF support cannot delay current-image navigation or violate provisional memory limits.
 
-### Completion gate
+## 8. Milestone 5 — Safe Finder File Actions
 
-GIF acceptance and safety tests pass without violating navigation correctness or provisional memory limits.
+Status: Blocked by Milestone 4
+Estimated overall MVP completion after milestone: 84%
 
-## 10. Task 8 — Finder actions and Trash
+### Objective
 
-Status: Blocked by Tasks 1, 4, and 7
+Let users move between Ohbee Preview and Finder and safely remove unwanted images without becoming a file manager.
+
+### User-visible outcome
+
+- Reveal in Finder selects the current file.
+- Move to Trash always requires confirmation.
+- Successful Trash chooses a deterministic next image.
+- Cancellation or failure preserves the file and navigation state.
+
+### Included scope
+
+- Reveal current image in Finder.
+- Native Trash confirmation naming the file.
+- Sandboxed move to system Trash.
+- Typed cancellation and failure behavior.
+- Deterministic next, previous, or empty selection after success.
+- Coordination with current decode, GIF, and thumbnail work.
+- Privacy-safe action duration, outcome, and failure instrumentation.
+
+### Explicit exclusions
+
+- Permanent delete.
+- Batch actions.
+- Rename, duplicate detection, rating, tagging, albums, or file organization.
 
 ### Requirement references
 
 - FR-028–030
 - FR-033
-- FR-039
+- FR-036–040
 - PRIV-001–003
 - AC-010
-
-### Design references
-
-- Sections 6.11
-- Sections 8–9
-- Section 18
-- Section 19
-
-### Deliverables
-
-- Reveal in Finder.
-- Native confirmation naming the file.
-- Sandboxed move to system Trash.
-- Cancellation and typed failure behavior.
-- Deterministic next/previous/empty selection.
-- Coordination with decode, prefetch, GIF, and thumbnails.
-- Privacy-safe confirmation-result, Trash-duration, success, and failure instrumentation.
 
 ### Acceptance criteria
 
 - Reveal selects the exact existing file.
-- Trash never occurs before confirmation.
+- No file moves before affirmative confirmation.
 - Cancellation changes nothing.
-- Navigation changes only after confirmed success.
-- Last-item Trash produces the empty state.
-- No permanent-delete operation exists.
+- Navigation changes only after confirmed Trash success.
+- A successful middle-item Trash selects the next item at the same index; otherwise previous; otherwise empty.
+- Failure retains the current item and explains that Trash did not complete.
 
 ### Required tests
 
-- Local writable file.
-- Read-only file.
-- Missing file.
-- External-volume file.
-- iCloud/File Provider item where available.
+- Local writable, read-only, missing, external-volume, iCloud, and available File Provider cases.
 - Confirmation cancellation.
-- Last-item and middle-item selection.
-- File hash/location verification.
-- Trash signpost closure and failure-category logging tests.
+- Middle, first, last, and only-item selection.
+- File location and source-integrity verification.
+- Permission failure and signpost pairing tests.
 
-### Dependencies
+### Release gate
 
-- Integration observations for mutation under granted scopes.
-- Task 4 navigation index.
-- Task 7 playback cancellation coordination.
+Release only after Trash behavior passes signed sandbox tests and no permanent-delete path exists.
 
-### Completion gate
+## 9. Milestone 6 — Accessible Native Experience
 
-AC-010 passes in signed sandboxed local scenarios, and provider/volume limitations are documented accurately.
+Status: Blocked by Milestone 5
+Estimated overall MVP completion after milestone: 92%
 
-## 11. Task 9 — Accessibility and keyboard operation
+### Objective
 
-Status: Blocked by Tasks 2–8
+Make every delivered MVP journey complete for keyboard and assistive-technology users, and polish the application into a coherent native macOS experience.
+
+### User-visible outcome
+
+- Every action is available from native menus and keyboard shortcuts.
+- VoiceOver communicates current file, position, loading/error state, selection, and command availability.
+- Focus moves and returns predictably.
+- Reduce Motion, Increase Contrast, and Differentiate Without Color are honored.
+- Rapid navigation announcements remain useful rather than noisy.
+
+### Included scope
+
+- End-to-end command and shortcut audit.
+- VoiceOver labels, roles, values, enabled state, and selection.
+- Logical focus order and focus restoration.
+- Keyboard thumbnail and Trash-confirmation journeys.
+- Reduced Motion transitions.
+- Increased contrast and non-color state communication.
+- Coalesced navigation announcements.
+- Accessibility fixes for all preceding milestones.
 
 ### Requirement references
 
-- FR-013, FR-014
-- FR-021, FR-024, FR-025, FR-027
+- FR-027
 - FR-036–038
 - AC-011
 
-### Design references
-
-- Sections 14, 17, 20
-- Section 23 accessibility tests
-
-### Deliverables
-
-- Complete native menu and shortcut coverage.
-- VoiceOver labels, roles, states, selection, and image status.
-- Logical focus order and restoration.
-- Keyboard thumbnail operation and Trash confirmation.
-- Reduced Motion transitions.
-- Increase Contrast and non-color state treatment.
-- Coalesced rapid-navigation announcements.
-
 ### Acceptance criteria
 
-- Every MVP action is keyboard-operable.
-- Left/Right navigation respects boundaries.
-- VoiceOver conveys filename, loading/error status, selection, and command availability.
-- Dialog focus restores correctly.
-- Reduced Motion and Increase Contrast journeys remain complete.
+- Every MVP action can be completed without a pointer.
+- VoiceOver communicates the current image and every loading, error, selection, and boundary state.
+- Dialog dismissal restores focus sensibly.
+- Reduce Motion removes large spatial transitions.
+- Selection, focus, disabled state, and errors remain clear without color alone.
 
 ### Required tests
 
-- Shortcut/menu UI tests.
+- Shortcut and native-menu UI tests.
 - Keyboard-only end-to-end journeys.
-- Manual VoiceOver audit plus accessibility assertions.
+- Accessibility property assertions.
+- Manual VoiceOver audit.
 - Focus restoration tests.
-- Reduced Motion, Increase Contrast, and Differentiate Without Color tests.
+- Reduce Motion, Increase Contrast, and Differentiate Without Color tests.
 
-### Dependencies
+### Release gate
 
-- Completed user-facing features from Tasks 2–8.
+Release when there is no critical keyboard, VoiceOver, focus, or appearance-accessibility defect across the complete MVP journey.
 
-### Completion gate
+## 10. Milestone 7 — Large-Folder Reliability and MVP Release
 
-AC-011 passes with no pointer requirement and no critical VoiceOver or focus defect.
+Status: Blocked by Milestone 6
+Estimated overall MVP completion after milestone: 100%
 
-## 12. Task 10 — Performance, memory, and resilience
+### Objective
 
-Status: Blocked by Tasks 2–9
+Turn the complete feature set into a dependable lightweight release for photographers, large folders, slow storage, and Mac App Store distribution.
+
+### User-visible outcome
+
+- The selected image remains responsive in folders ranging from ordinary size to 100,000 directory entries.
+- Repeated and rapid navigation does not cause stale images, runaway memory, or long UI stalls.
+- Large TIFF, corrupt images, memory pressure, and slow iCloud/File Provider items fail or degrade predictably.
+- Users receive a correctly signed, sandboxed, installable MVP build.
+
+### Included scope
+
+- Final bounded full-image, thumbnail, and GIF memory/work policies.
+- Image cache optimization and tightly bounded neighbor prefetch, only if measurements prove user-visible navigation benefit.
+- Memory-pressure handling.
+- 100/1K/10K/100K repeatable benchmark fixtures.
+- Rapid navigation and cancellation stress.
+- Large TIFF, animated GIF, corrupt image, missing image, and slow-provider scenarios.
+- Performance budgets and regression gates.
+- Release logging/signpost/counter audit.
+- Debug-only diagnostics overlay using existing metrics.
+- App Store/Developer ID signing, archive, sandbox, privacy, and packaging validation.
+- Final source-integrity and offline/no-network verification.
+
+### Explicit exclusions
+
+- Any new end-user feature.
+- Analytics, cloud telemetry, user tracking, or uploaded diagnostics.
+- Database, persistent folder index, persistent thumbnail store, or persistent security-scoped bookmark.
+- Optimization without a failing measurement or demonstrated user-visible benefit.
 
 ### Requirement references
 
-- FR-015, FR-026, FR-031–035, FR-039–040
+- FR-015, FR-026, FR-031–035, FR-039, FR-040
 - NFR-002–010
 - PERF-001–008
+- PRIV-001–005
 - AC-004, AC-006, AC-012–014
 
-### Design references
+### Performance and regression gates
 
-- Sections 10–16
-- Section 18
-- Sections 22–24, especially Sections 22.5–22.9
-- ADR-004–007
-- ADR-013
-
-### Deliverables
-
-- Final bounded decode, thumbnail, prefetch, GIF, and cache limits.
-- Memory-pressure behavior.
-- Versioned synthetic benchmark-fixture manifest.
-- 100/1K/10K/100K benchmark suite.
-- Rapid Previous/Next and cancellation-stress benchmarks.
-- Large-TIFF, animated-GIF, corrupt-image, memory-pressure, and slow-File-Provider benchmarks.
-- Open and navigation latency suite.
-- Main-thread stall instrumentation.
-- Ten-minute navigation stress suite.
-- Hostile/corrupt/large/provider fixture suite.
-- Final hard memory budgets and documented baseline.
-- Privacy/network and source-integrity verification.
-- Release-safe `os.Logger` category audit.
-- Complete `OSSignposter` interval audit.
-- Cache hit/miss, cancellation, stale-result, memory-pressure, decode-failure, and permission-failure counter audit.
-- Benchmark configuration and local result artifacts containing environment metadata, median, p95, minimum, maximum, failures, memory, and counter deltas.
-- Profiling configuration suitable for Instruments.
-- Completed Debug-only diagnostics overlay showing existing metrics without changing functional state.
-
-### Acceptance criteria
-
-- PERF-001–008 pass or approved adjustments are reconciled into requirements.
-- No eager all-image decode, all-thumbnail generation, or full EXIF scan occurs.
-- No application-caused main-thread stall exceeds 100 ms in tested normal journeys.
-- 100,000 entries do not gate selected-image presentation.
-- Memory stabilizes across repeated navigation.
-- One bad item cannot crash or invalidate the session.
-- Offline and no-unintended-write criteria pass.
-- Every required signpost interval closes on success, cancellation, and failure.
-- Release logs contain no path, filename, EXIF value, user identifier, bookmark data, or file content.
-- Debug paths appear only after explicit opt-in.
-- No hard budget or unexplained greater-than-15% median/p95 regression remains.
+- Window/loading response meets PERF-001.
+- Typical first-image display meets PERF-002.
+- Warm Previous/Next meets PERF-003 after any approved bounded optimization.
+- No application-caused main-thread stall exceeds the approved normal-journey budget.
+- A 100,000-entry folder never gates selected-image presentation.
+- The app never decodes all images, generates all thumbnails, or loads full EXIF metadata upfront.
+- Memory stabilizes during a ten-minute mixed navigation session.
+- Every signpost closes on success, cancellation, and failure.
+- Release logs contain no path, filename, EXIF value, identifier, bookmark data, or file content.
+- No unexplained median or p95 regression above the approved threshold is accepted.
 
 ### Required tests
 
 - Instruments Time Profiler, Allocations, Leaks, hangs, and signpost runs.
 - Automated latency percentile collection.
-- 100/1K/10K/100K enumeration/sort tests.
-- Rapid navigation stress.
-- Cancellation stress with counter assertions.
-- Ten-minute memory test.
+- 100/1K/10K/100K enumeration and sorting scenarios.
+- Rapid navigation and cancellation stress.
+- Ten-minute memory stability test.
 - Memory-pressure injection.
-- Large TIFF, animated GIF, corrupt, oversized, and malformed image suite.
+- Large TIFF, animated GIF, corrupt, oversized, malformed, missing, and unreadable fixtures.
 - Slow iCloud/File Provider scenario where available.
-- Logger privacy redaction tests in Release, Profiling, and Benchmark.
-- Build-configuration behavior tests.
-- Diagnostics-overlay Debug-only compilation and data-source tests.
-- Network inspection.
+- Release, Profiling, Benchmark, and Debug configuration checks.
+- Logger privacy and Debug-path opt-in tests.
+- Offline/network inspection.
 - Before/after file hash and metadata comparison.
+- Archive entitlement, signature, document-role, launch, and clean-install validation.
 
-### Dependencies
+### Release gate
 
-- Tasks 2–9.
-- Baseline Apple Silicon Mac with 16 GB RAM.
+The MVP may ship when all measurable requirements pass or approved requirement changes are reconciled, all critical/high defects are closed, signed sandbox behavior is verified on the required storage locations, and no Post-MVP infrastructure is present.
 
-### Completion gate
+## 11. Instrumentation ownership
 
-All performance requirements have measured results, instrumentation coverage is complete, privacy tests pass, final budgets are approved, and no Critical/High resilience defect or unexplained greater-than-15% performance regression remains.
+Observability is not a standalone infrastructure milestone. Each user feature owns the minimum instrumentation needed to prove its behavior:
 
-## 13. Task 11 — Packaging, signing, and release validation
-
-Status: Blocked by Tasks 1–10
-
-### Requirement references
-
-- FR-001, FR-005, FR-027, FR-036–040
-- NFR-001, NFR-004, NFR-009, NFR-010
-- PRIV-001–005
-- AC-001–014
-
-### Design references
-
-- Sections 21–24
-- Gate 4 in Section 24
-- ADR-001–012
-
-### Deliverables
-
-- Production signing and sandbox configuration.
-- Accurate document type declarations with viewer role.
-- Final entitlement audit.
-- App Store privacy and review checklist.
-- Supported macOS 14+ validation matrix.
-- Release acceptance report mapping FR-001–040 and AC-001–014.
-- Confirmation that Post-MVP infrastructure is absent.
-- Final Debug/Release/Profiling/Benchmark configuration audit.
-- Observability privacy audit confirming Apple-local facilities only.
-
-### Acceptance criteria
-
-- Signed release build opens declared formats through Finder.
-- Entitlements match actual behavior and integration acceptance results.
-- No network entitlement or unexpected connection exists.
-- No unapproved dependency exists.
-- Every FR and end-to-end AC is Passed or has an explicit approved exception.
-- App Store submission metadata accurately describes data and file behavior.
-- Release contains minimal privacy-preserving logging and critical low-overhead signposts only.
-- Debug diagnostics overlay and detailed path logging are absent from Release.
-- No diagnostics data can leave the device automatically.
-
-### Required tests
-
-- Signed clean-install smoke test.
-- Finder default/Open With tests.
-- Sandbox regression matrix.
-- Supported macOS version matrix.
-- Accessibility and performance release regression.
-- Offline run and connection inspection.
-- Source integrity and Trash verification.
-- Archive/signature/entitlement inspection.
-- Binary/configuration inspection for Debug-only overlay exclusion.
-- Release Console/signpost privacy inspection.
-
-### Dependencies
-
-- Tasks 1–10 complete.
-- Current App Store policy review.
-
-### Completion gate
-
-The product owner approves the release acceptance report and all architecture production-readiness gates pass.
-
-## 14. Cross-cutting observability implementation tasks
-
-These are production implementation tasks scheduled within Tasks 2–10. In the current authorization, only the Task 2 subset may be implemented.
-
-### OBS-001 — Structured local logging
-
-Deliverables:
-
-- Direct `os.Logger` categories for lifecycle, open, authorization, enumeration, sorting, navigation, image, thumbnail, cache, rendering, and Trash boundaries.
-- Release-safe message schemas and typed failure categories.
-- Explicit Debug path-logging opt-in.
-
-Tests:
-
-- Release, Profiling, and Benchmark logs contain no full path, filename, file content, EXIF value, bookmark data, user identifier, or PII.
-- Debug path logging is absent until explicitly enabled.
-- No logging path performs network or persistent user-history writes.
-
-Dependencies:
-
-- Task 2 application shell.
-- Integration-test observations for authorization error categories as they become available.
-
-Completion gate:
-
-- Privacy tests pass and logger categories match Design Section 22.1.
-
-### OBS-002 — Signpost instrumentation
-
-Deliverables:
-
-- `OSSignposter` point and interval coverage for startup, Finder URL receipt, authorization, enumeration, first batch, sorting, decode, display, navigation, thumbnails, rendering, and Trash.
-- Opaque session/request correlation values.
-
-Tests:
-
-- Every interval closes on success, cancellation, and failure.
-- Metric endpoints match Design Section 22.2.
-- Profiling traces contain no user path or filename.
-
-Dependencies:
-
-- Implemented operation boundaries from Tasks 2–8.
-
-Completion gate:
-
-- A Profiling trace demonstrates every required interval and point with balanced begin/end events.
-
-### OBS-003 — Local counters and memory events
-
-Deliverables:
-
-- Process-local cache hit/miss/insert/eviction/cost counters.
-- Cancellation and stale-result rejection counters.
-- Active/peak decode and thumbnail gauges.
-- Memory-pressure, purge, decode-failure, and permission-failure counters.
-
-Tests:
-
-- Deterministic fake-cache and cancellation tests assert exact deltas.
-- Memory-pressure tests assert purge counters and eviction order.
-- Counters reset between benchmark runs.
-
-Dependencies:
-
-- Tasks 3, 4, 6, 7, and 10.
-
-Completion gate:
-
-- Counters are bounded, actor-safe, nonpersistent, and agree with controlled test outcomes.
-
-### OBS-004 — Benchmark fixtures and scenarios
-
-Deliverables:
-
-- Synthetic/nonpersonal fixture generator or checked fixture set.
-- Versioned fixture manifest.
-- Scenarios for 100, 1,000, 10,000, and 100,000 entries; rapid navigation; cancellation; large TIFF; animated GIF; corrupt image; memory pressure; and slow iCloud/File Provider.
-- Local benchmark result schema with hardware, OS, configuration, commit, storage, fixture version, sample count, latency statistics, memory, and counter deltas.
-
-Tests:
-
-- Fixture manifest is reproducible and contains no personal image.
-- Scenario setup verifies expected entry/file counts and expected success/failure.
-- Slow provider scenario records Not Available rather than Pass when no provider is available.
-
-Dependencies:
-
-- Tasks 3–7 for complete media scenarios.
-- Integration acceptance observations for authorization scenario expectations.
-
-Completion gate:
-
-- Every required scenario is reproducible on the baseline Mac or explicitly marked Not Available with reason.
-
-### OBS-005 — Performance and memory regression gates
-
-Deliverables:
-
-- Optimized Benchmark configuration.
-- Profiling configuration for Instruments.
-- Automated median/p95/minimum/maximum/failure evaluation.
-- Main-thread stall, settled/peak memory, ten-minute stability, and 15% regression checks.
-- Locally retained reviewed baseline artifacts.
-
-Tests:
-
-- Known synthetic regression causes the gate to fail.
-- Hard product-budget breach always fails.
-- Correctness, stale-result, unbounded-growth, and main-thread-blocking failures cannot be waived by a good average.
-
-Dependencies:
-
-- OBS-002 through OBS-004.
-- Task 10.
-
-Completion gate:
-
-- All Design Section 22.8 gates pass or specification changes are explicitly approved.
-
-### OBS-006 — Debug diagnostics overlay
-
-Deliverables:
-
-- Optional Engineering Diagnostics overlay compiled only into Debug.
-- Read-only presentation of current state, durations, counts, cache cost, active work, failures, and memory-pressure events.
-- Explicit separate opt-in for paths.
-
-Tests:
-
-- Overlay is absent from Release and Benchmark products.
-- Overlay reads existing instrumentation rather than creating duplicate state.
-- Enabling the overlay does not change authorization, scheduling, cache limits, or result correctness.
-
-Dependencies:
-
-- OBS-001 through OBS-003.
-- Task 2 overlay shell.
-
-Completion gate:
-
-- Debug UI test verifies contents, default-off state, privacy behavior, and Release exclusion.
-
-## 15. Requirement coverage
-
-| Task | Primary functional requirements |
+| Milestone | Required instrumentation |
 |---|---|
-| 1 | FR-001–003, FR-005–006, FR-028–030, FR-033, FR-035 |
-| 2 | FR-001–004, FR-027, FR-031, FR-040 |
-| 3 | FR-004, FR-011, FR-031–035, FR-039 |
-| 4 | FR-005–010, FR-013–016, FR-022, FR-033 |
-| 5 | FR-004, FR-017–024, FR-038–039 |
-| 6 | FR-025–027 |
-| 7 | FR-012, FR-015, FR-031–034 |
-| 8 | FR-028–030, FR-033, FR-039 |
-| 9 | FR-013–014, FR-021, FR-024–025, FR-027, FR-036–038 |
-| 10 | FR-015, FR-026, FR-031–035, FR-039–040 |
-| 11 | FR-001–040 release coverage |
+| Completed foundation | Application lifecycle, Finder URL receipt, authorization assessment, selected-image decode/display |
+| Folder Navigation MVP | Enumeration, sorting, navigation, decode, cancellation, stale-result prevention, permission/decode failures |
+| Image Inspection Controls | Preview/detail decode, render commit, viewport interaction and frame stalls |
+| Visual Folder Browsing | Thumbnail generation, request cancellation, bounded cache hit/miss/eviction/cost |
+| Animated Image Viewing | GIF startup, frame pacing, pause, cancellation, failure, working set |
+| Safe Finder File Actions | Reveal/Trash duration, confirmation outcome, success and failure |
+| Accessible Native Experience | No user tracking; accessibility is validated through UI state and tests |
+| Large-Folder Reliability and MVP Release | Memory pressure, full regression counters, benchmark result collection and privacy audit |
 
-All FR-001 through FR-040 receive implementation and/or release coverage. Cross-cutting requirements intentionally appear in more than one task.
+Instrumentation must use Apple system APIs such as `os.Logger`, `OSSignposter`, MetricKit where locally appropriate, and Instruments. It must not introduce an analytics SDK, generic telemetry framework, cloud service, or third-party dependency. No diagnostic data leaves the device.
 
-## 16. Current authorization
+## 12. Milestone completion summary
 
-- Specification reconciliation: Complete.
-- Sandbox spike: Cancelled and waived by product-owner decision.
-- Unresolved Finder parent-access risk: Explicitly accepted.
-- User-controlled folder-picker fallback: Approved MVP behavior.
-- Production application implementation: Authorized.
-- Stage 2 / Task 2: Complete.
-- Current authorized scope: No further production stage; explicit authorization is required before Task 3.
-- Tasks 3–11: Not authorized in the current stage.
-- Observability tasks: Task 2 lifecycle/open/authorization subset implemented; later subsets remain planned.
+| Delivery point | Main user value | Estimated overall MVP |
+|---|---|---:|
+| Completed foundation | Open and display one Finder-selected image | 15% |
+| 1. Folder Navigation MVP | Browse a folder with Previous/Next | 40% |
+| 2. Image Inspection Controls | Zoom, pan, rotate, actual size, full screen | 58% |
+| 3. Visual Folder Browsing | Optional on-demand thumbnail navigation | 69% |
+| 4. Animated Image Viewing | Safe animated GIF playback | 76% |
+| 5. Safe Finder File Actions | Reveal and confirmed Move to Trash | 84% |
+| 6. Accessible Native Experience | Complete keyboard, VoiceOver, focus, appearance support | 92% |
+| 7. Large-Folder Reliability and MVP Release | Measured large-folder resilience and distributable MVP | 100% |
+
+Percentages estimate completed MVP user value and release readiness, not engineering hours. They are planning indicators rather than contractual progress measurements.
+
+## 13. Primary risks
+
+### Critical — Finder parent access under App Sandbox
+
+The standalone spike was waived, so automatic sibling access remains environment-dependent.
+
+Mitigation:
+
+- Validate in signed builds during Folder Navigation MVP.
+- Never assume parent authority from a selected-file URL.
+- Preserve the selected image when discovery fails.
+- Keep the explicit exact-parent folder-picker fallback.
+
+### High — Stale results during rapid navigation
+
+Apple decode or provider work may complete after cancellation.
+
+Mitigation:
+
+- Validate session, item, and generation on every result.
+- Stress rapid Previous/Next before releasing Folder Navigation MVP.
+
+### High — Large-image memory usage
+
+A compressed image may require a much larger decoded allocation.
+
+Mitigation:
+
+- Keep Folder Navigation MVP to one current decode with no cache or prefetch.
+- Add resource-aware preview/detail behavior with inspection controls.
+- Finalize memory budgets from measured fixtures in the release milestone.
+
+### High — Large-folder enumeration
+
+Sorting or publishing a very large directory can create latency, allocation, and MainActor pressure.
+
+Mitigation:
+
+- Keep entries lightweight and enumeration off the main actor.
+- Do not decode images or load EXIF during discovery.
+- Preserve selected-image priority.
+- Finalize batching and coalescing only from benchmark evidence.
+
+### Medium — Slow iCloud and File Provider materialization
+
+Authorized items may still be delayed or unavailable.
+
+Mitigation:
+
+- Show truthful loading.
+- Allow navigation away.
+- Reject obsolete provider results.
+- Distinguish provider and permission failures from unsupported formats.
+
+### Medium — Gesture and accessibility interaction complexity
+
+Zoom, pan, navigation, thumbnail selection, and VoiceOver can conflict if added without end-to-end validation.
+
+Mitigation:
+
+- Add viewport gestures in one inspection milestone.
+- Include accessibility hooks with every feature.
+- Perform the complete accessibility audit before release hardening.
+
+### Medium — Trash capability differs by volume/provider
+
+Mutation behavior may vary across local, external, iCloud, and File Provider storage.
+
+Mitigation:
+
+- Test in a signed sandboxed build.
+- Update navigation only after confirmed success.
+- Preserve state and report typed failure otherwise.
+
+## 14. Why this order improves incremental delivery
+
+1. Folder Navigation MVP combines rendering, authorization, discovery, sorting, and navigation because none provides the intended daily workflow alone.
+2. The first new milestone answers the central product question: whether opening one Finder image and browsing its folder feels immediate and native.
+3. Cache optimization and prefetch no longer delay first usable navigation; they are introduced only when measurements demonstrate a need.
+4. Viewport controls follow navigation because detail inspection is valuable only after the user can reach the desired image.
+5. Thumbnails follow the stable navigation index and viewport, producing a complete visual-browsing increment rather than isolated thumbnail infrastructure.
+6. GIF and file actions build on a stable current-item lifecycle, preventing format and mutation complexity from destabilizing the core journey.
+7. Accessibility hooks ship with each feature, while the dedicated audit closes end-to-end gaps before release.
+8. Large-folder optimization and packaging occur after the complete user workflow exists, allowing performance work to target real journeys instead of speculative abstractions.
+9. Every milestone can be handed to internal users as a coherent build and evaluated before committing to the next scope.
+
+## 15. Current authorization
+
+- Completed foundation: Implemented and published.
+- Folder Navigation MVP: Planned but not yet implemented.
+- Later milestones: Planned only.
+- Post-MVP capabilities: Not authorized.
+- No production code may be added as part of this replanning change.
