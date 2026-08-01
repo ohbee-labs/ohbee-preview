@@ -20,6 +20,7 @@ struct ImageInspectionView: NSViewRepresentable {
     let image: NSImage
     let filename: String
     let generation: UInt64
+    let contentRevision: UInt64
     let state: ViewportState
     let onEffectiveScaleChanged: @MainActor (CGFloat) -> Void
     let onPinchScaleChanged: @MainActor (CGFloat) -> Void
@@ -49,6 +50,7 @@ struct ImageInspectionView: NSViewRepresentable {
         var parent: ImageInspectionView
         private weak var scrollView: InspectionScrollView?
         private var appliedGeneration: UInt64?
+        private var appliedContentRevision: UInt64?
         private var appliedState: ViewportState?
         private var appliedBackingScale: CGFloat?
         private var appliedViewportSize: CGSize?
@@ -110,6 +112,7 @@ struct ImageInspectionView: NSViewRepresentable {
             let viewportSize = scrollView.contentSize
             guard viewportSize.width > 0, viewportSize.height > 0 else { return }
             let imageChanged = appliedGeneration != parent.generation
+            let contentChanged = appliedContentRevision != parent.contentRevision
             let stateChanged = appliedState != parent.state
             let displayScaleChanged = appliedBackingScale != backingScale
             let viewportChanged =
@@ -117,10 +120,24 @@ struct ImageInspectionView: NSViewRepresentable {
                 || appliedViewportSize?.height != viewportSize.height
             guard
                 imageChanged
+                    || contentChanged
                     || stateChanged
                     || displayScaleChanged
                     || viewportChanged
             else {
+                return
+            }
+
+            if contentChanged,
+               !imageChanged,
+               !stateChanged,
+               !displayScaleChanged,
+               !viewportChanged {
+                scrollView.replacePresentedImage(
+                    parent.image,
+                    accessibilityLabel: "Image \(parent.filename)"
+                )
+                appliedContentRevision = parent.contentRevision
                 return
             }
 
@@ -168,6 +185,7 @@ struct ImageInspectionView: NSViewRepresentable {
                 }
             }
 
+            appliedContentRevision = parent.contentRevision
             appliedState = parent.state
             appliedBackingScale = backingScale
             appliedViewportSize = viewportSize
@@ -229,6 +247,12 @@ final class InspectionCanvasView: NSView {
         )
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
+        setAccessibilityLabel(accessibilityLabel)
+        needsDisplay = true
+    }
+
+    func replaceImage(_ image: NSImage, accessibilityLabel: String) {
+        self.image = image
         setAccessibilityLabel(accessibilityLabel)
         needsDisplay = true
     }
@@ -388,6 +412,10 @@ final class InspectionScrollView: NSScrollView {
         )
         needsLayout = true
         layoutSubtreeIfNeeded()
+    }
+
+    func replacePresentedImage(_ image: NSImage, accessibilityLabel: String) {
+        canvas.replaceImage(image, accessibilityLabel: accessibilityLabel)
     }
 
     func applyMagnification(_ scale: CGFloat, preserveCenter: Bool) {

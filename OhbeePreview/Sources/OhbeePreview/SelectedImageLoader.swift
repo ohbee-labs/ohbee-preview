@@ -14,6 +14,7 @@ enum SelectedImageLoadError: Error, Equatable {
     case permissionDenied
     case unreadable
     case decodeFailed
+    case resourceExcessive
 
     var userMessage: String {
         switch self {
@@ -27,6 +28,8 @@ enum SelectedImageLoadError: Error, Equatable {
             "The image could not be read."
         case .decodeFailed:
             "The image data could not be decoded."
+        case .resourceExcessive:
+            "This GIF is too large to display safely."
         }
     }
 }
@@ -79,7 +82,33 @@ enum SelectedImageLoader {
                 throw SelectedImageLoadError.unreadable
             }
             guard
-                let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                let source = CGImageSourceCreateWithURL(url as CFURL, nil)
+            else {
+                throw SelectedImageLoadError.decodeFailed
+            }
+            if url.pathExtension.lowercased() == "gif" {
+                let frameCount = CGImageSourceGetCount(source)
+                guard frameCount <= 10_000 else {
+                    throw SelectedImageLoadError.resourceExcessive
+                }
+                guard
+                    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil)
+                        as? [CFString: Any],
+                    let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+                    let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+                    width > 0,
+                    height > 0,
+                    width <= 16_384,
+                    height <= 16_384
+                else {
+                    throw SelectedImageLoadError.resourceExcessive
+                }
+                let (pixels, overflow) = width.multipliedReportingOverflow(by: height)
+                guard !overflow, pixels <= 16_777_216 else {
+                    throw SelectedImageLoadError.resourceExcessive
+                }
+            }
+            guard
                 let cgImage = CGImageSourceCreateImageAtIndex(
                     source,
                     0,

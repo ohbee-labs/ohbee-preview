@@ -77,6 +77,10 @@ xcrun swiftc \
   "$CORE_MODULE_DIR/OhbeeStage2Core.o" \
   "$PROJECT_DIR/Sources/OhbeePreview/AppDelegate.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/AppModel.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameScheduler.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageController.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/ContentView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/FolderAccessController.swift" \

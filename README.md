@@ -8,6 +8,8 @@ icon improvement and fixes Fit-to-Window centering after image navigation.
 The current development branch additionally contains Milestone 3 visual folder
 browsing; its local-folder GUI, keyboard, VoiceOver, Dark Mode, memory-smoke,
 and engineering gates pass, but it has not been published as a numbered release.
+It also contains Milestone 4 animated GIF viewing with bounded frame memory and
+cancellable playback; this work has not been published as a numbered release.
 
 ## Highlights
 
@@ -16,6 +18,7 @@ and engineering gates pass, but it has not been published as a numbered release.
 - Discover sibling images in the selected file's folder
 - Natural filename sorting with non-wrapping Previous and Next navigation
 - Optional, resizable thumbnail sidebar with progressive on-demand loading
+- Animated GIF playback while the GIF is current and the app is active
 - Fit to Window and Actual Size viewing modes
 - Bounded zoom, trackpad pinch, scrolling, and pointer panning
 - Non-destructive, session-only left and right rotation
@@ -59,6 +62,10 @@ The application has a small set of focused components:
 - **Thumbnail subsystem** independently owns ImageIO thumbnail generation,
   visible/nearby-row cancellation, bounded scheduling, and a byte-cost memory
   cache. Off-screen rows release their image so they cannot bypass that bound.
+- **Animated GIF subsystem** classifies only the selected GIF, schedules one
+  frame decode at a time, and keeps at most eight frames / 64 MiB of decoded
+  frame data independently from thumbnails. Navigation and app inactivity stop
+  playback; returning restarts from frame zero.
 - **Diagnostics** uses privacy-preserving `os.Logger` and signposts locally.
 
 Additional design and product specifications are available in
@@ -67,6 +74,10 @@ Additional design and product specifications are available in
 Milestone 3 slow iCloud materialization, third-party File Provider behavior,
 and slow external-volume behavior remain unverified environment-specific
 limitations. They do not affect the verified local-folder workflow.
+
+Milestone 4 visual checks with real transparent/disposal-heavy, large, and
+high-frame-count GIFs, plus multi-minute CPU/RSS observation, remain manual
+release limitations. APNG, animated WebP, video, and Live Photos are unsupported.
 
 ## Supported Image Formats
 

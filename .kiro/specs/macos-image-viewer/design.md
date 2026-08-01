@@ -283,6 +283,14 @@ Responsibilities:
 
 It is format-specific and not a generic media player.
 
+Production boundary:
+
+- `AnimatedImageController` owns selected-GIF and application-activity lifecycle.
+- `ImageIOAnimatedImageLoader` performs selected-item classification and frame decode off the main actor.
+- `AnimatedFrameScheduler` deduplicates by playback session, URL, and frame index and permits one GIF frame decode at a time.
+- `AnimatedFrameStore` is independent from thumbnail storage and uses playback-session keys, an eight-frame limit, and a 64 MiB decoded-byte limit.
+- `AppModel` does not own GIF frames, timing, scheduling, or cache state.
+
 Requirements: FR-012; NFR-005.
 
 ### 6.11 Finder action service
@@ -520,6 +528,13 @@ Authorized item request
 - Bound decoded frames and concurrent work.
 - Pause and release discardable frames when no longer current.
 - Permit safe first-frame degradation plus a resource explanation for excessive files.
+- Classify only the selected `.gif`; folder discovery and thumbnail generation do not count animation frames.
+- Treat a one-frame GIF as a static image and restart a multi-frame GIF from frame zero whenever it becomes current again.
+- Use unclamped delay metadata when valid, fall back to clamped delay metadata, and replace missing, non-finite, zero, or sub-20 ms values with 100 ms.
+- Interpret a positive ImageIO loop count as repeat count after the initial pass; zero or missing loop metadata plays indefinitely while current.
+- Pause when the application resigns active and restart from frame zero when it becomes active again. No explicit playback control is included in this milestone.
+- Reject more than 10,000 frames, dimensions above 16,384 pixels per axis, or a decoded frame estimate above 64 MiB. These are safety limits, not a claim of complete decompression-bomb protection.
+- Use ImageIO-composited frames; unusual disposal/partial-frame files that ImageIO cannot render correctly remain a platform limitation rather than grounds for a custom GIF decoder.
 
 ## 13. Thumbnail loading pipeline
 

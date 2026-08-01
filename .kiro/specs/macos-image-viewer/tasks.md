@@ -407,7 +407,7 @@ Release when the optional strip adds visual navigation without changing the ligh
 
 ## 7. Milestone 4 — Animated Image Viewing
 
-Status: Planned; unstarted and unauthorized
+Status: Completed 2026-08-01; automated and signed-build gates passed with documented manual limitations
 Estimated overall MVP completion after milestone: 76%
 
 ### Objective
@@ -463,9 +463,37 @@ Display ordinary animated GIFs correctly without allowing animation work to degr
 
 Release when GIF support cannot delay current-image navigation or violate provisional memory limits.
 
+### Implementation record — 2026-08-01
+
+- Added an isolated `AnimatedImageController`, ImageIO loader, concurrency-one frame scheduler, and playback-session-aware bounded frame store; `AppModel`, folder navigation, viewport geometry, and thumbnail responsibilities remain separate.
+- Selected-only classification distinguishes static files, single-frame GIFs, multi-frame GIFs, and invalid/resource-excessive GIFs without parsing GIFs during folder discovery.
+- Timing prefers valid unclamped/clamped GIF delay metadata, substitutes 100 ms for missing, invalid, zero, or sub-20 ms values, uses `ContinuousClock`, accounts for decode time, and skips overdue frames without creating a backlog.
+- Missing or zero loop metadata plays indefinitely while active. A positive loop count is treated as repeat count after the initial pass. Reselecting or reactivating a GIF restarts at frame zero; loop progress is never persisted.
+- Playback identity includes folder/current-image generation through the selected-image generation plus a dedicated playback session, URL, and frame index. Navigation, Finder open, view disappearance, application inactivity, and superseding selections cancel or invalidate prior publication.
+- The frame store is independent from thumbnail storage, limited to eight decoded frames and 64 MiB, accounts with decoded bytes, retains the presented frame outside the store, and purges all noncurrent frames on memory pressure. There is no disk cache.
+- Resource guards reject more than 10,000 frames, dimensions above 16,384 pixels per axis, and decoded frame estimates above 64 MiB before animated frame decode. A later bad frame preserves the last valid presentation and does not disable navigation.
+- The existing AppKit viewport replaces only frame pixels for a content revision, preserving document geometry, Fit/Actual Size state, zoom, pan, rotation, resize, fullscreen, and centering. Thumbnail rows remain static first-frame images.
+- Local-only privacy-safe diagnostics cover classification/first-frame context, frame decode duration, presentation lateness, displayed/skipped frames, starts/stops, pause/resume, loop completion, cache hit/miss/cost, cancellation, stale rejection, timing normalization, failure, and memory-pressure purges without paths or filenames.
+- Deterministic generated fixtures and fakes cover static/single/multi-frame classification, timing normalization, loop parsing/completion, frame decode, corruption, excessive cost, LRU/cost/count/purge behavior, URL/session identity, deduplication, concurrency bound, queued/active cancellation, pause/resume, static navigation invalidation, stale publication, and corrupt-frame isolation.
+- Final automated results: 22 Folder Navigation core, 17 viewport geometry, 13 Milestone 1 integration, 21 Milestone 2 integration, 34 thumbnail pipeline, 31 animated-image pipeline, 73 native AppKit viewport, and six-UTI Launch Services checks pass. HEIC fixture generation remains skipped because the installed ImageIO encoder is unavailable.
+- Optimized fixture measurement on the development environment for a generated 3-frame 8×8 GIF: classification approximately 0.31 ms and one frame decode approximately 14.9 ms. The frame limits are 64 MiB and eight frames; these synthetic numbers are comparative, not universal guarantees.
+
+### Post-implementation engineering review — 2026-08-01
+
+- Review found and fixed a serious cross-session identity defect: frame tasks and cached frames now key by playback session, URL where applicable, and frame index, preventing an old GIF from satisfying or cancelling a newer request.
+- Review added an explicit concurrency-one decode gate, active and queued cancellation coverage, resource checks before the selected GIF's first decode, per-frame property/cost validation, and a viewport regression proving animated frame replacement preserves geometry, pan, and magnification.
+- Architecture 9/10; concurrency 9/10; memory 8.5/10; performance 8.5/10; testability 8.5/10; privacy/security 9.5/10; production readiness 8.5/10.
+- Known technical debt: ImageIO is trusted for GIF compositing/disposal; no automated macOS accessibility/UI harness observes animation; high-frame-count and pathological real-world files need broader device measurements; ImageIO frame creation cannot be interrupted during the native call but late publication is generation-safe.
+
+### Manual validation status — 2026-08-01
+
+- Terminal-driven fixtures verify metadata, decode, timing, loop, cancellation, memory bounds, viewport preservation, and failure behavior. Debug and clean signed Release builds pass.
+- Visual/manual checks remain unverified for real transparent and disposal-heavy GIFs, large/high-frame-count GIFs, rapid installed-app navigation, interactive zoom/pan/rotation/fullscreen/sidebar behavior during playback, window-close and inactivity observation, multi-minute RSS/CPU behavior, and Light/Dark visual consistency.
+- Gate decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**. The unverified visual and long-running environments are release limitations to close before a public numbered release, not evidence of automated failure.
+
 ## 8. Milestone 5 — Safe Finder File Actions
 
-Status: Blocked by Milestone 4
+Status: Planned; unstarted and unauthorized
 Estimated overall MVP completion after milestone: 84%
 
 ### Objective
@@ -785,12 +813,15 @@ Mitigation:
 - Milestone 3: Complete; automated, signed-build, local interactive GUI, memory-smoke, Dark Mode, keyboard, VoiceOver, engineering-review, and privacy gates pass. Slow iCloud, third-party File Provider, and slow external-volume validation remain documented limitations.
 - Final Milestone 3 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
 - Official overall MVP progress: 69%.
+- Milestone 4: Complete; animated GIF architecture, automated regressions, resource bounds, diagnostics, engineering review, Debug/Release, signing, sandbox, entitlement, UTI, icon, source-integrity, and scope gates pass with visual and long-running manual limitations documented.
+- Final Milestone 4 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
+- Official overall MVP progress: 76%.
 - Release v1.0.1 remains the completed icon-legibility patch with dedicated simplified 16×16, 32×32, and 64×64 artwork and unchanged large artwork.
 - Release v1.0.2 is a focused viewport-correctness patch that reasserts the committed image generation's centering invariant after later SwiftUI/AppKit layout updates.
 - Release v1.0.2 is packaged at `dist/Ohbee-Preview-1.0.2/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.2/Ohbee-Preview-1.0.2-macOS.zip`; no Milestone 3 functionality is included.
 - Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
 - Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, packaged launch smoke, and the installed-build manual Next/Previous matrix pass.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
-- Milestone 4 and later: Planned only and not authorized.
+- Milestone 5 and later: Planned only and not authorized.
 - Post-MVP capabilities: Not authorized.
-- No Milestone 4 or later production code is authorized.
+- No Milestone 5 or later production code is authorized.

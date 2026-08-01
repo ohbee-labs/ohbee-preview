@@ -324,12 +324,14 @@ enum NativeViewportCLITests {
         // NSViewRepresentable.updateNSView calls, not only the native view API.
         func representable(
             size: CGSize,
-            generation: UInt64
+            generation: UInt64,
+            contentRevision: UInt64 = 0
         ) -> ImageInspectionView {
             ImageInspectionView(
                 image: NSImage(size: size),
                 filename: "private",
                 generation: generation,
+                contentRevision: contentRevision,
                 state: ViewportState(),
                 onEffectiveScaleChanged: { _ in },
                 onPinchScaleChanged: { _ in },
@@ -374,6 +376,29 @@ enum NativeViewportCLITests {
             "Repeated representable update lost vertical centering"
         )
 
-        print("PASS: 70 native AppKit viewport checks")
+        let frameBeforeAnimatedReplacement = representableScrollView.canvas.frame
+        let originBeforeAnimatedReplacement = representableScrollView.contentView.bounds.origin
+        let scaleBeforeAnimatedReplacement = representableScrollView.magnification
+        coordinator.parent = representable(
+            size: CGSize(width: 500, height: 1_500),
+            generation: 501,
+            contentRevision: 1
+        )
+        coordinator.apply(to: representableScrollView)
+        try expect(
+            representableScrollView.canvas.frame == frameBeforeAnimatedReplacement,
+            "Animated frame replacement changed document geometry"
+        )
+        try expect(
+            representableScrollView.contentView.bounds.origin
+                == originBeforeAnimatedReplacement,
+            "Animated frame replacement reset pan or centering"
+        )
+        try expect(
+            representableScrollView.magnification == scaleBeforeAnimatedReplacement,
+            "Animated frame replacement reset magnification"
+        )
+
+        print("PASS: 73 native AppKit viewport checks")
     }
 }

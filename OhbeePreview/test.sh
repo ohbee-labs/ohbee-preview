@@ -80,6 +80,8 @@ else
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
     "$PROJECT_DIR/Sources/OhbeePreview/AppDelegate.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AppModel.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/FolderAccessController.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
@@ -104,6 +106,8 @@ else
     -framework UniformTypeIdentifiers \
     -I "$BUILD_ROOT/CoreModule" \
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailCache.swift" \
@@ -114,6 +118,33 @@ else
     "$PROJECT_DIR/Tests/ThumbnailPipelineCLITests/main.swift" \
     -o "$BUILD_ROOT/ThumbnailPipelineCLITests"
   "$BUILD_ROOT/ThumbnailPipelineCLITests"
+
+  xcrun swiftc \
+    -target "$(uname -m)-apple-macos14.0" \
+    -sdk "$SDK_PATH" \
+    -module-cache-path "$BUILD_ROOT/ModuleCache" \
+    -swift-version 6 \
+    -O \
+    -parse-as-library \
+    -framework AppKit \
+    -framework ImageIO \
+    -framework OSLog \
+    -framework UniformTypeIdentifiers \
+    -I "$BUILD_ROOT/CoreModule" \
+    "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameScheduler.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageController.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/FolderAccessController.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailCache.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailLoader.swift" \
+    "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailScheduler.swift" \
+    "$PROJECT_DIR/Tests/AnimatedImageCLITests/main.swift" \
+    -o "$BUILD_ROOT/AnimatedImageCLITests"
+  "$BUILD_ROOT/AnimatedImageCLITests"
 
   xcrun swiftc \
     -target "$(uname -m)-apple-macos14.0" \

@@ -15,6 +15,7 @@ enum Diagnostics {
     static let viewport = Logger(subsystem: subsystem, category: "viewport")
     static let thumbnail = Logger(subsystem: subsystem, category: "thumbnail")
     static let cache = Logger(subsystem: subsystem, category: "cache")
+    static let gif = Logger(subsystem: subsystem, category: "gif")
 
     static let lifecycleSignposter = OSSignposter(
         subsystem: subsystem,
@@ -48,6 +49,10 @@ enum Diagnostics {
         subsystem: subsystem,
         category: "thumbnail"
     )
+    static let gifSignposter = OSSignposter(
+        subsystem: subsystem,
+        category: "gif"
+    )
 
     private static let applicationEnteredAt = ContinuousClock.now
     private static var cancelledDecodeCount = 0
@@ -57,6 +62,17 @@ enum Diagnostics {
     private static var viewportResetCount = 0
     private static var invalidTransformCount = 0
     private static var memoryPressureCount = 0
+    private static var gifFramesDisplayed = 0
+    private static var gifFramesSkipped = 0
+    private static var gifPlaybackStarts = 0
+    private static var gifPlaybackStops = 0
+    private static var gifPauses = 0
+    private static var gifResumes = 0
+    private static var gifLoopCompletions = 0
+    private static var gifDecodeCancellations = 0
+    private static var gifStaleFrames = 0
+    private static var gifFailures = 0
+    private static var gifMemoryPurges = 0
 
     static func markApplicationEntry() {
         _ = applicationEnteredAt
@@ -286,5 +302,129 @@ enum Diagnostics {
     static func recordMemoryPressure() {
         memoryPressureCount += 1
         viewport.notice("Memory pressure observed total=\(memoryPressureCount)")
+    }
+
+    static func recordGIFClassification(
+        kind: AnimatedImageKind,
+        duration: Duration
+    ) {
+        let classification: StaticString
+        let frameCount: Int
+        let invalidTiming: Int
+        switch kind {
+        case .notGIF:
+            classification = "static"
+            frameCount = 0
+            invalidTiming = 0
+        case .singleFrameGIF:
+            classification = "single-frame"
+            frameCount = 1
+            invalidTiming = 0
+        case let .animated(descriptor):
+            classification = "animated"
+            frameCount = descriptor.frameCount
+            invalidTiming = descriptor.invalidTimingCount
+        }
+        gif.notice(
+            "GIF classified kind=\(classification) frames=\(frameCount) invalidTiming=\(invalidTiming) duration=\(String(describing: duration), privacy: .public)"
+        )
+        gifSignposter.emitEvent(
+            "GIFClassified",
+            "frames=\(frameCount) duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordGIFPlaybackStart(descriptor: AnimatedImageDescriptor) {
+        gifPlaybackStarts += 1
+        gif.notice(
+            "GIF playback started total=\(gifPlaybackStarts) frames=\(descriptor.frameCount)"
+        )
+    }
+
+    static func recordGIFStop(reason: StaticString) {
+        gifPlaybackStops += 1
+        gif.notice("GIF playback stopped total=\(gifPlaybackStops) reason=\(reason)")
+    }
+
+    static func recordGIFPause() {
+        gifPauses += 1
+        gif.notice("GIF playback paused total=\(gifPauses)")
+    }
+
+    static func recordGIFResume() {
+        gifResumes += 1
+        gif.notice("GIF playback resumed total=\(gifResumes)")
+    }
+
+    static func recordGIFFrameDecode(duration: Duration) {
+        gif.debug(
+            "GIF frame decoded duration=\(String(describing: duration), privacy: .public)"
+        )
+        gifSignposter.emitEvent(
+            "GIFFrameDecoded",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordGIFFrameDisplayed(lateness: Duration) {
+        gifFramesDisplayed += 1
+        gif.debug(
+            "GIF frame displayed total=\(gifFramesDisplayed) lateness=\(String(describing: lateness), privacy: .public)"
+        )
+    }
+
+    static func recordGIFFirstFrameDisplay(duration: Duration) {
+        gif.notice(
+            "GIF first frame displayed duration=\(String(describing: duration), privacy: .public)"
+        )
+        gifSignposter.emitEvent(
+            "GIFFirstFrameDisplayed",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordGIFFramesSkipped(_ count: Int) {
+        gifFramesSkipped += count
+        gif.notice("GIF frames skipped count=\(count) total=\(gifFramesSkipped)")
+    }
+
+    static func recordGIFLoopCompletion() {
+        gifLoopCompletions += 1
+        gif.debug("GIF loop completed total=\(gifLoopCompletions)")
+    }
+
+    static func recordGIFDecodeCancellation() {
+        gifDecodeCancellations += 1
+        gif.debug("GIF decode cancelled total=\(gifDecodeCancellations)")
+    }
+
+    static func recordGIFStaleFrame() {
+        gifStaleFrames += 1
+        gif.notice("Stale GIF frame rejected total=\(gifStaleFrames)")
+    }
+
+    static func recordGIFFailure(_ error: Error) {
+        gifFailures += 1
+        gif.error(
+            "GIF decode failed total=\(gifFailures) category=\(privacySafeError(error), privacy: .public)"
+        )
+    }
+
+    static func recordGIFFrameCache(
+        hit: Bool,
+        store: AnimatedFrameStore
+    ) async {
+        let snapshot = await store.snapshot()
+        gif.debug(
+            "GIF frame cache result=\(hit ? "hit" : "miss", privacy: .public) count=\(snapshot.count) cost=\(snapshot.cost) hits=\(snapshot.hits) misses=\(snapshot.misses) evictions=\(snapshot.evictions)"
+        )
+    }
+
+    static func recordGIFMemoryPurge(store: AnimatedFrameStore) async {
+        gifMemoryPurges += 1
+        let snapshot = await store.snapshot()
+        gif.notice(
+            "GIF frame memory purged total=\(gifMemoryPurges) retained=\(snapshot.count) cost=\(snapshot.cost)"
+        )
     }
 }

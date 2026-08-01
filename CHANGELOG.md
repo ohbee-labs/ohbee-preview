@@ -9,6 +9,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Added bounded, cancellable animated GIF playback using ImageIO with safe delay
+  normalization, finite/infinite loop handling, lifecycle pause/restart, and
+  generation-safe frame publication.
+- Added an independent eight-frame / 64 MiB decoded frame store, concurrency-one
+  frame scheduler, selected-GIF resource guards, and local GIF diagnostics.
 - Added a collapsible, resizable thumbnail sidebar with persisted visibility.
 - Added progressive ImageIO thumbnails, keyboard selection, selected-item
   highlighting, and automatic scroll synchronization.
@@ -17,6 +22,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Preserved zoom, pan, rotation, centering, and document geometry while animated
+  frames replace one another in the existing AppKit viewport.
+- Isolated frame task/cache identity by playback session and URL so obsolete GIF
+  work cannot publish into or cancel a newer selection.
 - Ensured thumbnail cancellation remains attached to the bounded scheduler task
   instead of allowing detached ImageIO work to outlive its request.
 - Released row-owned thumbnail images when rows leave the visible working set so

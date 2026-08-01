@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var model: AppModel
     @Binding var thumbnailSidebarVisible: Bool
+    @StateObject private var animation = AnimatedImageController()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +27,15 @@ struct ContentView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .frame(minWidth: 640, minHeight: 480)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            animation.setActive(false)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            animation.setActive(true)
+        }
+        .onDisappear {
+            animation.stop(reason: "view-disappeared")
+        }
     }
 
     private var viewerDetail: some View {
@@ -45,9 +55,10 @@ struct ContentView: View {
 
             if let displayed = model.displayedImage {
                 ImageInspectionView(
-                    image: displayed.image,
+                    image: animation.presentedImage ?? displayed.image,
                     filename: displayed.filename,
                     generation: displayed.generation,
+                    contentRevision: animation.presentationRevision,
                     state: model.viewportState,
                     onEffectiveScaleChanged: model.viewportEffectiveScaleChanged,
                     onPinchScaleChanged: model.viewportPinchScaleChanged,
@@ -62,6 +73,12 @@ struct ContentView: View {
                     onInvalidTransform: model.viewportRejectedInvalidTransform
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .task(id: displayed.generation) {
+                    animation.select(
+                        url: displayed.sourceURL,
+                        generation: displayed.generation
+                    )
+                }
             } else {
                 emptyViewerState
             }
