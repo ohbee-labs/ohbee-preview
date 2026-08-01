@@ -103,6 +103,20 @@ enum Milestone2IntegrationCLITests {
         try await waitUntil("folder discovery") {
             model.canNavigateNext
         }
+        try expect(
+            model.thumbnailEntries.map(\.url) == [image1, image2, corrupt].map(\.standardizedFileURL),
+            "Thumbnail entries did not mirror natural navigation order"
+        )
+        model.selectThumbnail(model.thumbnailEntries[1])
+        try await waitUntil("thumbnail selection") {
+            model.displayedImage?.sourceURL == image2.standardizedFileURL
+                && model.selectedThumbnailURL == image2.standardizedFileURL
+        }
+        model.selectThumbnail(model.thumbnailEntries[0])
+        try await waitUntil("thumbnail return selection") {
+            model.displayedImage?.sourceURL == image1.standardizedFileURL
+                && model.selectedThumbnailURL == image1.standardizedFileURL
+        }
         try expect(model.viewportState.mode == .fit, "Initial image was not Fit")
         let displayedTIFF = model.displayedImage?.image.tiffRepresentation
         let displayedBitmap = displayedTIFF.flatMap(NSBitmapImageRep.init(data:))
@@ -212,6 +226,6 @@ enum Milestone2IntegrationCLITests {
             "Inspection controls modified source metadata"
         )
 
-        print("PASS: 18 Image Inspection Controls integration checks")
+        print("PASS: 21 Image Inspection and thumbnail-selection integration checks")
     }
 }

@@ -302,11 +302,11 @@ Senior code-quality review completed 2026-07-31. Behavior-preserving stabilizati
 - The representative-sibling read probe now closes its file handle on every path.
 - Redundant viewport installation state was removed; canonical document/clip geometry remains the single centering model.
 
-All Milestone 1, Milestone 2, centering, source-integrity, Launch Services, Debug, Release, sandbox, entitlement, and signing checks pass after review. Engineering decision: **APPROVED WITH MINOR DEBT**. Milestone 3 remains unstarted and requires explicit product authorization.
+All Milestone 1, Milestone 2, centering, source-integrity, Launch Services, Debug, Release, sandbox, entitlement, and signing checks passed after that review. Engineering decision: **APPROVED WITH MINOR DEBT**. Milestone 3 was subsequently authorized and completed on 2026-08-01.
 
 ## 6. Milestone 3 — Visual Folder Browsing
 
-Status: Planned; not started and not authorized
+Status: Completed 2026-08-01; release gate passed with documented slow-storage limitations
 Estimated overall MVP completion after milestone: 69%
 
 ### Objective
@@ -367,9 +367,47 @@ Help users recognize and jump to nearby images visually without turning the appl
 
 Release when the optional strip adds visual navigation without changing the lightweight folder-viewer model or making work proportional to total folder size.
 
+### Implementation record — 2026-08-01
+
+- Added a hidden-by-default, persisted, resizable SwiftUI thumbnail sidebar with automatic nonanimated selection scrolling.
+- Added an isolated `ThumbnailController`, ImageIO `ThumbnailLoader`, priority-aware bounded `ThumbnailScheduler`, byte-cost `ThumbnailCache`, and row-scoped `ThumbnailViewModel`.
+- Thumbnail generation uses ImageIO thumbnail APIs with orientation transforms and never enters the selected-image decode pipeline.
+- `LazyVStack` row appearance/disappearance owns request/cancellation, so work follows the rendered working set rather than total folder size.
+- Folder replacement, sidebar closure, application-view teardown, and memory pressure cancel thumbnail work; generation/session checks reject stale publication.
+- Cache default is 64 MiB, uses deterministic least-recently-used byte-cost eviction, and is purged on memory pressure. There is no disk cache.
+- Local diagnostics cover cache hits, misses, hit rate, count, cost, insertions, evictions, generated count, latency average, active/waiting/peak tasks, cancellations, stale results, and failures without paths or filenames.
+- Automated coverage passes for selection synchronization, cache hit/eviction, duplicate suppression, visible priority, active and queued cancellation, folder switch, stale session rejection, ImageIO orientation, corrupt images, memory pressure, concurrency bounds, and a 10,000-entry/20-request working set.
+- Synthetic 10,000-entry scheduling measurement: 20 requested thumbnails in approximately 16 ms, peak three decodes, 61,440-byte cache cost. A 100-thumbnail ImageIO fixture run completes in approximately 11 ms total on the current development machine with peak concurrency three; fixture results are comparative engineering measurements, not user-device guarantees.
+- The local interactive GUI, persistence, divider, keyboard, VoiceOver, selection-scroll, rapid-scroll, Dark Mode, bounded-memory smoke, and UI-responsiveness checks were subsequently completed and passed. Slow-storage environments remain documented below.
+
+### Post-milestone release-gate review — 2026-08-01
+
+- Actual signed Release application opened a 300-image local folder successfully with the sidebar disabled and enabled; the process remained alive throughout each smoke observation.
+- Observed RSS was 93,712 KiB with the sidebar disabled and 109,504 KiB with it enabled after initial materialization, an increase of 15,792 KiB. Subsequent representative physical scrolling showed no unbounded growth; quantitative post-close RSS and system-pressure measurements remain unavailable.
+- Automation could not drive accessibility UI or capture the screen in the execution environment. The user subsequently completed and passed the divider, show/hide, relaunch persistence, synchronization, physical scrolling, Light/Dark, fullscreen, keyboard-focus, and VoiceOver matrix manually.
+- Slow iCloud Drive materialization, third-party File Provider behavior, and slow external-volume behavior remain unverified release limitations.
+- Engineering review found and fixed two serious lifecycle defects: detached ImageIO generation could outlive scheduler cancellation, and retained off-screen row view models could hold `CGImage` instances outside the cache budget.
+- Safe review refactors also removed per-render `Array(enumerated())` allocation, added visible sidebar focus indication, strengthened cancellation immediately after permit acquisition, and replaced brittle fixed test delays with state-based waits.
+- Architecture review: 9/10. Thumbnail decode, scheduling, caching, lifecycle, and rendering remain outside `AppModel`; dependency direction is concrete and narrow.
+- Concurrency review: 8.5/10. Actor isolation, bounded priority scheduling, deduplication, priority promotion, queued/active cancellation, session invalidation, and stale publication checks pass. ImageIO C calls cannot be interrupted mid-call, but cancellation is checked immediately before and after them.
+- Memory-management review: 8.5/10. Cache cost is byte-based and bounded, off-screen row images are released, nearby task retention is bounded, and memory pressure purges cache/work. Representative real-folder scrolling passed; quantitative post-close RSS remains unmeasured.
+- SwiftUI/AppKit integration review: 8/10. `HSplitView`, `LazyVStack`, stable URL identity, selection scrolling, row lifecycle, adaptive system colors, and focus indication are appropriate. Real divider, VoiceOver, Dark Mode, and fullscreen validation subsequently passed manually.
+- Testability review: 8.5/10. Deterministic cache/scheduler/session fixtures and native integration coverage are strong; full UI automation and accessibility automation are absent.
+- Final release gate decision after the manual matrix: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**. Official project completion is 69%.
+
+### Final manual acceptance — 2026-08-01
+
+- Passed show/hide behavior, real-quit visibility persistence, sensible divider resizing, stable thumbnail geometry, main-image centering, window resizing, and fullscreen layout.
+- Passed progressive population, responsive rapid physical scrolling, cache-backed revisits, sidebar close/reopen stability, and representative bounded-memory observation without an obvious UI stall.
+- Passed click, Previous/Next, keyboard, automatic scroll-to-selection, rapid-navigation synchronization, and final-main-image consistency.
+- Passed Light and Dark appearance checks, meaningful VoiceOver labels, selected-state announcement, sidebar-control labels, and privacy review with no private paths announced or logged.
+- Slow iCloud materialization, third-party File Provider behavior, and slow external-volume behavior remain unverified release limitations, not blockers for the local-folder milestone.
+- Engineering decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
+- Repository ignore rules were intentionally consolidated from `OhbeePreview/.gitignore` into the root `.gitignore`, preserving `.DS_Store`, SwiftPM, build, test, icon-generation, `dist`, and DerivedData exclusions for the whole repository.
+
 ## 7. Milestone 4 — Animated Image Viewing
 
-Status: Blocked by Milestone 3
+Status: Planned; unstarted and unauthorized
 Estimated overall MVP completion after milestone: 76%
 
 ### Objective
@@ -744,12 +782,15 @@ Mitigation:
 - Overall MVP progress: 40%.
 - Milestone 2: Complete; automated, manual GUI, engineering review, build, sandbox, entitlement, signing, and release gates pass.
 - Overall MVP progress: 58%.
+- Milestone 3: Complete; automated, signed-build, local interactive GUI, memory-smoke, Dark Mode, keyboard, VoiceOver, engineering-review, and privacy gates pass. Slow iCloud, third-party File Provider, and slow external-volume validation remain documented limitations.
+- Final Milestone 3 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
+- Official overall MVP progress: 69%.
 - Release v1.0.1 remains the completed icon-legibility patch with dedicated simplified 16×16, 32×32, and 64×64 artwork and unchanged large artwork.
 - Release v1.0.2 is a focused viewport-correctness patch that reasserts the committed image generation's centering invariant after later SwiftUI/AppKit layout updates.
 - Release v1.0.2 is packaged at `dist/Ohbee-Preview-1.0.2/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.2/Ohbee-Preview-1.0.2-macOS.zip`; no Milestone 3 functionality is included.
 - Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
-- Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, and packaged launch smoke test pass. The full manual Next/Previous matrix in an installed GUI build remains pending.
+- Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, packaged launch smoke, and the installed-build manual Next/Previous matrix pass.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
-- Later milestones: Planned only.
+- Milestone 4 and later: Planned only and not authorized.
 - Post-MVP capabilities: Not authorized.
-- No Milestone 3 or later production code is authorized.
+- No Milestone 4 or later production code is authorized.

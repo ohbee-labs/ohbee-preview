@@ -83,6 +83,11 @@ xcrun swiftc \
   "$PROJECT_DIR/Sources/OhbeePreview/ImageInspectionView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/OhbeePreviewApp.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/SelectedImageLoader.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailCache.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailController.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailLoader.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailScheduler.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/ThumbnailSidebar.swift" \
   -o "$MACOS_DIR/OhbeePreview"
 
 codesign --force --deep --sign - \

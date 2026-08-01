@@ -127,6 +127,17 @@ private func testFolderNavigation() async throws {
     try expect(!snapshot.canNavigateNext, "Last-image boundary failed")
     try expect(snapshot.selectNext() == nil, "Next wrapped at last image")
 
+    let thumbnailSelection = snapshot.select(url: selected)
+    try expect(
+        thumbnailSelection?.url == selected.standardizedFileURL,
+        "Thumbnail selection did not update current image"
+    )
+    try expect(snapshot.position == 2, "Thumbnail selection position was not synchronized")
+    try expect(
+        snapshot.select(url: root.appendingPathComponent("missing.jpg")) == nil,
+        "Unknown thumbnail changed selection"
+    )
+
     let unmatched = NavigationSnapshot(
         entries: snapshot.entries,
         selectedURL: root.appendingPathComponent("missing.jpg")
@@ -316,7 +327,7 @@ enum Stage2CoreCLITests {
         try await testFolderNavigation()
         try await testDelayedLatestRequestWins()
         try testViewportGeometry()
-        print("PASS: 19 Folder Navigation MVP core checks")
+        print("PASS: 22 Folder Navigation and thumbnail-selection core checks")
         print("PASS: 17 Image Inspection Controls geometry checks")
     }
 }

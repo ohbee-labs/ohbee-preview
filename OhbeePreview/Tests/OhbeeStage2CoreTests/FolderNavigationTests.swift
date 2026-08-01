@@ -49,6 +49,10 @@ final class FolderNavigationTests: XCTestCase {
         XCTAssertEqual(snapshot.selectNext()?.filename, "image10.jpg")
         XCTAssertFalse(snapshot.canNavigateNext)
         XCTAssertNil(snapshot.selectNext())
+
+        XCTAssertEqual(snapshot.select(url: selected)?.url, selected.standardizedFileURL)
+        XCTAssertEqual(snapshot.position, 2)
+        XCTAssertNil(snapshot.select(url: root.appendingPathComponent("missing.jpg")))
     }
 
     func testUnmatchedSelectionDoesNotCreateFolderSession() {

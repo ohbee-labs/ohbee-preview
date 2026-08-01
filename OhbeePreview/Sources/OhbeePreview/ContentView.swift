@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
+    @Binding var thumbnailSidebarVisible: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -9,15 +10,32 @@ struct ContentView: View {
                 folderAccessBanner
             }
 
-            viewer
+            if thumbnailSidebarVisible {
+                HSplitView {
+                    ThumbnailSidebar(
+                        entries: model.thumbnailEntries,
+                        selectedURL: model.selectedThumbnailURL,
+                        folderGeneration: model.folderGeneration,
+                        onSelect: model.selectThumbnail
+                    )
+                    viewerDetail
+                }
+            } else {
+                viewerDetail
+            }
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(minWidth: 640, minHeight: 480)
+    }
 
+    private var viewerDetail: some View {
+        VStack(spacing: 0) {
+            viewer
             if model.hasImageSession {
                 inspectionBar
                 navigationBar
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .frame(minWidth: 640, minHeight: 480)
     }
 
     @ViewBuilder

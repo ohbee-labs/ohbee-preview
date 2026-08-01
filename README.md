@@ -5,6 +5,9 @@ folder browsing, keyboard-first navigation, and predictable image inspection.
 
 Release **v1.0.2** is the current stable MVP baseline. It preserves the v1.0.1
 icon improvement and fixes Fit-to-Window centering after image navigation.
+The current development branch additionally contains Milestone 3 visual folder
+browsing; its local-folder GUI, keyboard, VoiceOver, Dark Mode, memory-smoke,
+and engineering gates pass, but it has not been published as a numbered release.
 
 ## Highlights
 
@@ -12,6 +15,7 @@ icon improvement and fixes Fit-to-Window centering after image navigation.
 - Open supported images from Finder using Open or Open With
 - Discover sibling images in the selected file's folder
 - Natural filename sorting with non-wrapping Previous and Next navigation
+- Optional, resizable thumbnail sidebar with progressive on-demand loading
 - Fit to Window and Actual Size viewing modes
 - Bounded zoom, trackpad pinch, scrolling, and pointer panning
 - Non-destructive, session-only left and right rotation
@@ -52,10 +56,17 @@ The application has a small set of focused components:
   main actor.
 - **Native viewport** integrates `NSScrollView` with SwiftUI for magnification,
   panning, centering, rotation, and keyboard navigation.
+- **Thumbnail subsystem** independently owns ImageIO thumbnail generation,
+  visible/nearby-row cancellation, bounded scheduling, and a byte-cost memory
+  cache. Off-screen rows release their image so they cannot bypass that bound.
 - **Diagnostics** uses privacy-preserving `os.Logger` and signposts locally.
 
 Additional design and product specifications are available in
 [`.kiro/specs/macos-image-viewer`](.kiro/specs/macos-image-viewer/).
+
+Milestone 3 slow iCloud materialization, third-party File Provider behavior,
+and slow external-volume behavior remain unverified environment-specific
+limitations. They do not affect the verified local-folder workflow.
 
 ## Supported Image Formats
 
@@ -73,6 +84,7 @@ Additional design and product specifications are available in
 |---|---|
 | Previous image | Left Arrow |
 | Next image | Right Arrow |
+| Toggle thumbnails | Option-Command-T |
 | Fit to Window | Command-9 |
 | Actual Size | Command-0 |
 | Zoom In | Command-Equals / Command-Plus |
@@ -150,7 +162,10 @@ The suite covers:
 - integration tests for image loading, folder discovery, cancellation,
   stale-result rejection, and source-file integrity;
 - native AppKit viewport tests for magnification, rotation, centering, resize,
-  and image replacement; and
+  and image replacement;
+- thumbnail tests for ImageIO orientation, deduplication, priority, cancellation,
+  stale-session rejection, cache eviction, memory pressure, and 10K request
+  bounds; and
 - deterministic Launch Services document-type checks.
 
 When Xcode provides `xctest`, the project uses SwiftPM/XCTest. The test script
@@ -159,10 +174,11 @@ also supports a Command Line Tools environment through equivalent CLI suites.
 ## Performance Philosophy
 
 Ohbee Preview prioritizes the selected image and keeps file access, folder
-enumeration, sorting, and decoding off the main actor. Rendering uses native
-Apple frameworks. The current release does not add speculative image caching or
-prefetch, and ImageIO decodes directly from the authorized file URL to avoid an
-unnecessary compressed-file copy. Further optimization is driven by measured
+enumeration, sorting, image decoding, and thumbnail generation off the main
+actor. Rendering uses native Apple frameworks. Full-image loading remains
+independent from the thumbnail subsystem. Thumbnails use a concurrency-limited
+ImageIO pipeline and a 64 MiB byte-cost memory cache; there is no disk cache or
+background folder indexing. Further optimization is driven by measured
 user-visible bottlenecks.
 
 ## Privacy

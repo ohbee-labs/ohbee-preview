@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var viewportState = ViewportState()
     @Published private(set) var effectiveViewportScale: CGFloat = 1
     @Published private var navigationSnapshot: NavigationSnapshot?
+    @Published private(set) var folderGeneration: UInt64 = 0
 
     private let requestCoordinator = OpenRequestCoordinator()
     private let folderAccess = FolderAccessController()
@@ -65,6 +66,14 @@ final class AppModel: ObservableObject {
     var navigationPosition: String? {
         guard let snapshot = navigationSnapshot else { return nil }
         return "\(snapshot.position) of \(snapshot.entries.count)"
+    }
+
+    var thumbnailEntries: [NavigationEntry] {
+        navigationSnapshot?.entries ?? []
+    }
+
+    var selectedThumbnailURL: URL? {
+        navigationSnapshot?.current.url ?? displayedImage?.sourceURL
     }
 
     var hasImageSession: Bool {
@@ -107,6 +116,7 @@ final class AppModel: ObservableObject {
 
     func open(url: URL) {
         cancelSessionWork()
+        folderGeneration &+= 1
 
         let sessionID = UUID()
         folderAccess.replaceSelectedFileAccess(with: url)
@@ -134,6 +144,14 @@ final class AppModel: ObservableObject {
 
     func navigateNext() {
         navigate(previous: false)
+    }
+
+    func selectThumbnail(_ entry: NavigationEntry) {
+        guard var snapshot = navigationSnapshot else { return }
+        guard snapshot.current.url != entry.url else { return }
+        guard let target = snapshot.select(url: entry.url) else { return }
+        navigationSnapshot = snapshot
+        navigate(to: target)
     }
 
     func fitToWindow() {
@@ -302,6 +320,10 @@ final class AppModel: ObservableObject {
         guard let target else { return }
 
         navigationSnapshot = snapshot
+        navigate(to: target)
+    }
+
+    private func navigate(to target: NavigationEntry) {
         currentURL = target.url
         loadState = .loading(filename: target.filename)
         updateWindowTitle(filename: target.filename)

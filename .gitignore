@@ -4,4 +4,6 @@
 .build-stage2-tests/
 .build-icon/
 .swiftpm/
+DerivedData/
 dist/
+.gitignore

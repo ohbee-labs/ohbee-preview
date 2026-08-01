@@ -5,6 +5,7 @@ struct OhbeePreviewApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
     @State private var didFinishInitialAppearance = false
+    @AppStorage("thumbnailSidebarVisible") private var thumbnailSidebarVisible = false
 
     init() {
         Diagnostics.markApplicationEntry()
@@ -12,7 +13,10 @@ struct OhbeePreviewApp: App {
 
     var body: some Scene {
         WindowGroup("Ohbee Preview", id: "viewer") {
-            ContentView(model: model)
+            ContentView(
+                model: model,
+                thumbnailSidebarVisible: $thumbnailSidebarVisible
+            )
                 .onAppear {
                     guard !didFinishInitialAppearance else { return }
                     didFinishInitialAppearance = true
@@ -80,6 +84,16 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(!model.canInspectImage)
+            }
+            CommandGroup(after: .sidebar) {
+                Button(
+                    thumbnailSidebarVisible
+                        ? "Hide Thumbnails"
+                        : "Show Thumbnails"
+                ) {
+                    thumbnailSidebarVisible.toggle()
+                }
+                .keyboardShortcut("t", modifiers: [.command, .option])
             }
             CommandGroup(after: .help) {
                 Button("Make Ohbee Preview the Default Viewer…") {

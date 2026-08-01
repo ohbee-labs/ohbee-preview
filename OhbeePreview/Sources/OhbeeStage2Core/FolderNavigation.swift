@@ -62,6 +62,16 @@ public struct NavigationSnapshot: Sendable, Equatable {
         currentIndex += 1
         return current
     }
+
+    @discardableResult
+    public mutating func select(url: URL) -> NavigationEntry? {
+        let normalized = url.standardizedFileURL
+        guard let index = entries.firstIndex(where: { $0.url == normalized }) else {
+            return nil
+        }
+        currentIndex = index
+        return current
+    }
 }
 
 public struct FolderNavigationResult: Sendable {

@@ -5,6 +5,23 @@ All notable changes to Ohbee Preview are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added a collapsible, resizable thumbnail sidebar with persisted visibility.
+- Added progressive ImageIO thumbnails, keyboard selection, selected-item
+  highlighting, and automatic scroll synchronization.
+- Added a dedicated bounded thumbnail scheduler, byte-cost cache, cancellation,
+  stale-result rejection, memory-pressure handling, and local diagnostics.
+
+### Fixed
+
+- Ensured thumbnail cancellation remains attached to the bounded scheduler task
+  instead of allowing detached ImageIO work to outlive its request.
+- Released row-owned thumbnail images when rows leave the visible working set so
+  the bounded cache remains the sole retained thumbnail store.
+
 ## [1.0.2] - 2026-07-31
 
 ### Fixed

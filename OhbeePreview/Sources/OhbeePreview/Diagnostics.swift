@@ -13,6 +13,8 @@ enum Diagnostics {
     static let image = Logger(subsystem: subsystem, category: "image")
     static let navigation = Logger(subsystem: subsystem, category: "navigation")
     static let viewport = Logger(subsystem: subsystem, category: "viewport")
+    static let thumbnail = Logger(subsystem: subsystem, category: "thumbnail")
+    static let cache = Logger(subsystem: subsystem, category: "cache")
 
     static let lifecycleSignposter = OSSignposter(
         subsystem: subsystem,
@@ -41,6 +43,10 @@ enum Diagnostics {
     static let viewportSignposter = OSSignposter(
         subsystem: subsystem,
         category: "viewport"
+    )
+    static let thumbnailSignposter = OSSignposter(
+        subsystem: subsystem,
+        category: "thumbnail"
     )
 
     private static let applicationEnteredAt = ContinuousClock.now
@@ -226,6 +232,55 @@ enum Diagnostics {
     static func recordInvalidTransform() {
         invalidTransformCount += 1
         viewport.error("Invalid transform rejected total=\(invalidTransformCount)")
+    }
+
+    static func recordThumbnailCache(
+        hit: Bool,
+        snapshot: ThumbnailCache.Snapshot
+    ) {
+        cache.debug(
+            """
+            Thumbnail cache result=\(hit ? "hit" : "miss", privacy: .public) \
+            count=\(snapshot.count) cost=\(snapshot.cost) limit=\(snapshot.costLimit) \
+            hits=\(snapshot.hits) misses=\(snapshot.misses) hitRate=\(snapshot.hitRate) \
+            insertions=\(snapshot.insertions) evictions=\(snapshot.evictions)
+            """
+        )
+    }
+
+    static func recordThumbnailGenerated(
+        duration: Duration,
+        cache: ThumbnailCache.Snapshot,
+        scheduler: ThumbnailScheduler.Snapshot,
+        generated: Int,
+        averageSeconds: Double
+    ) {
+        thumbnail.debug(
+            """
+            Thumbnail generated duration=\(String(describing: duration), privacy: .public) \
+            total=\(generated) averageSeconds=\(averageSeconds) \
+            active=\(scheduler.activeDecodes) waiting=\(scheduler.waiting) \
+            cacheCount=\(cache.count) cacheCost=\(cache.cost)
+            """
+        )
+        thumbnailSignposter.emitEvent(
+            "ThumbnailGenerated",
+            "active=\(scheduler.activeDecodes) cost=\(cache.cost)"
+        )
+    }
+
+    static func recordThumbnailCancellation(
+        scheduler: ThumbnailScheduler.Snapshot
+    ) {
+        thumbnail.debug(
+            "Thumbnail cancelled total=\(scheduler.cancellations) active=\(scheduler.activeDecodes) waiting=\(scheduler.waiting)"
+        )
+    }
+
+    static func recordThumbnailFailure(_ error: Error) {
+        thumbnail.error(
+            "Thumbnail failed category=\(privacySafeError(error), privacy: .public)"
+        )
     }
 
     static func recordMemoryPressure() {
