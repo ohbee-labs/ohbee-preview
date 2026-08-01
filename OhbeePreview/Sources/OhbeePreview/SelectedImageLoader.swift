@@ -6,6 +6,9 @@ import OhbeeStage2Core
 
 struct LoadedSelectedImage: @unchecked Sendable {
     let image: NSImage
+    let fileIdentity: Data?
+    let fileSize: Int?
+    let modificationDate: Date?
 }
 
 enum SelectedImageLoadError: Error, Equatable {
@@ -121,8 +124,19 @@ enum SelectedImageLoader {
                 cgImage: cgImage,
                 size: NSSize(width: cgImage.width, height: cgImage.height)
             )
+            let values = try? url.resourceValues(forKeys: [
+                .fileResourceIdentifierKey,
+                .fileSizeKey,
+                .contentModificationDateKey
+            ])
+            let fileIdentity = values?.fileResourceIdentifier as? Data
             try Task.checkCancellation()
-            return LoadedSelectedImage(image: image)
+            return LoadedSelectedImage(
+                image: image,
+                fileIdentity: fileIdentity,
+                fileSize: values?.fileSize,
+                modificationDate: values?.contentModificationDate
+            )
         }.value
     }
 }

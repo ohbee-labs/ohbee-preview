@@ -30,6 +30,20 @@ struct OhbeePreviewApp: App {
                     model.manuallyBrowseFolder()
                 }
                 .disabled(!model.canManuallyRequestFolderAccess)
+
+                Divider()
+
+                Button("Reveal in Finder") {
+                    model.revealCurrentInFinder()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(!model.canRevealCurrentFile)
+
+                Button("Move to Trash…", role: .destructive) {
+                    model.moveCurrentToTrash()
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(!model.canMoveCurrentFileToTrash)
             }
             CommandMenu("Navigate") {
                 Button("Previous Image") {

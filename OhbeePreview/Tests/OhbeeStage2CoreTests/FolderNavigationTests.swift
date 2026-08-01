@@ -69,4 +69,45 @@ final class FolderNavigationTests: XCTestCase {
             )
         )
     }
+
+    func testRemovalUsesNextThenPreviousAndKeepsNoncurrentSelection() throws {
+        let entries = ["1.jpg", "2.jpg", "3.jpg"].map {
+            NavigationEntry(
+                url: URL(fileURLWithPath: "/tmp/\($0)"),
+                filename: $0
+            )
+        }
+        let middle = try XCTUnwrap(
+            NavigationSnapshot(entries: entries, selectedURL: entries[1].url)
+        )
+        let middleRemoval = try XCTUnwrap(middle.removing(url: entries[1].url))
+        XCTAssertTrue(middleRemoval.removedWasCurrent)
+        XCTAssertEqual(middleRemoval.selectedEntry?.url, entries[2].url)
+
+        let last = try XCTUnwrap(
+            NavigationSnapshot(entries: entries, selectedURL: entries[2].url)
+        )
+        XCTAssertEqual(last.removing(url: entries[2].url)?.selectedEntry?.url, entries[1].url)
+
+        let noncurrent = try XCTUnwrap(
+            NavigationSnapshot(entries: entries, selectedURL: entries[1].url)
+        )
+        let noncurrentRemoval = try XCTUnwrap(noncurrent.removing(url: entries[0].url))
+        XCTAssertFalse(noncurrentRemoval.removedWasCurrent)
+        XCTAssertEqual(noncurrentRemoval.selectedEntry?.url, entries[1].url)
+    }
+
+    func testRemovingOnlyEntryProducesEmptySelection() throws {
+        let entry = NavigationEntry(
+            url: URL(fileURLWithPath: "/tmp/only.jpg"),
+            filename: "only.jpg"
+        )
+        let snapshot = try XCTUnwrap(
+            NavigationSnapshot(entries: [entry], selectedURL: entry.url)
+        )
+        let removal = try XCTUnwrap(snapshot.removing(url: entry.url))
+        XCTAssertTrue(removal.removedWasCurrent)
+        XCTAssertNil(removal.selectedEntry)
+        XCTAssertTrue(removal.remainingEntries.isEmpty)
+    }
 }

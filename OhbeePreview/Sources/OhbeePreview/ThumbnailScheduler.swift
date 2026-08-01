@@ -179,6 +179,16 @@ actor ThumbnailScheduler {
         }
     }
 
+    func cancel(url: URL) {
+        let normalized = url.standardizedFileURL
+        let matching = operations.filter { $0.key.url == normalized }
+        cancellations += matching.count
+        for (key, operation) in matching {
+            operations.removeValue(forKey: key)
+            operation.task.cancel()
+        }
+    }
+
     func snapshot() async -> Snapshot {
         let permits = await permits.snapshot()
         return Snapshot(

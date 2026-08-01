@@ -17,6 +17,7 @@ struct ContentView: View {
                         entries: model.thumbnailEntries,
                         selectedURL: model.selectedThumbnailURL,
                         folderGeneration: model.folderGeneration,
+                        eviction: model.thumbnailEviction,
                         onSelect: model.selectThumbnail
                     )
                     viewerDetail
@@ -35,6 +36,20 @@ struct ContentView: View {
         }
         .onDisappear {
             animation.stop(reason: "view-disappeared")
+        }
+        .onChange(of: model.trashActionTarget) { _, target in
+            animation.setFileActionSuspended(target != nil)
+        }
+        .alert(
+            "File Action Failed",
+            isPresented: Binding(
+                get: { model.finderActionError != nil },
+                set: { if !$0 { model.dismissFinderActionError() } }
+            )
+        ) {
+            Button("OK") { model.dismissFinderActionError() }
+        } message: {
+            Text(model.finderActionError ?? "The file action failed.")
         }
     }
 
@@ -98,6 +113,12 @@ struct ContentView: View {
                 systemImage: "photo",
                 description: Text("Open a supported image from Finder.")
             )
+        case .emptyFolder:
+            ContentUnavailableView(
+                "No Images Remain",
+                systemImage: "photo.on.rectangle.angled",
+                description: Text("Open another image to continue browsing.")
+            )
         case let .loading(filename):
             VStack(spacing: 12) {
                 ProgressView()
@@ -133,7 +154,7 @@ struct ContentView: View {
                 Text("\(filename): \(message)")
             }
             .accessibilityLabel("Unable to open \(filename). \(message)")
-        case .empty, .ready:
+        case .empty, .emptyFolder, .ready:
             EmptyView()
         }
     }

@@ -63,6 +63,16 @@ actor ThumbnailCache {
         totalCost = 0
     }
 
+    func remove(url: URL) -> Int {
+        let normalized = url.standardizedFileURL
+        let matching = entries.filter { $0.key.url == normalized }
+        for (key, entry) in matching {
+            entries.removeValue(forKey: key)
+            totalCost -= entry.payload.cost
+        }
+        return matching.count
+    }
+
     func snapshot() -> Snapshot {
         Snapshot(
             count: entries.count,

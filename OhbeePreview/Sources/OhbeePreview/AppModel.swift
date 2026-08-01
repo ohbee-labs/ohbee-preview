@@ -10,10 +10,15 @@ final class AppModel: ObservableObject {
         let filename: String
         let image: NSImage
         let generation: UInt64
+        let fileIdentity: Data?
+        let fileSize: Int?
+        let modificationDate: Date?
     }
+
 
     enum LoadState {
         case empty
+        case emptyFolder
         case loading(filename: String)
         case ready
         case failed(filename: String, message: String)
@@ -28,9 +33,14 @@ final class AppModel: ObservableObject {
     @Published private(set) var effectiveViewportScale: CGFloat = 1
     @Published private var navigationSnapshot: NavigationSnapshot?
     @Published private(set) var folderGeneration: UInt64 = 0
+    @Published private(set) var trashActionTarget: FinderActionTarget?
+    @Published private(set) var finderActionError: String?
+    @Published private(set) var thumbnailEviction: ThumbnailEvictionRequest?
+    @Published private(set) var isFinderActionPending = false
 
     private let requestCoordinator = OpenRequestCoordinator()
     private let folderAccess = FolderAccessController()
+    private let finderActions: FinderActionController
     private var currentURL: URL?
     private var currentSessionID = UUID()
     private var decodeTask: Task<Void, Never>?
@@ -39,8 +49,12 @@ final class AppModel: ObservableObject {
     private var rotationsByURL: [URL: QuarterTurn] = [:]
     private var rotationOrder: [URL] = []
     private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var finderActionTask: Task<Void, Never>?
+    private var finderActionID: UUID?
+    private var thumbnailEvictionGeneration: UInt64 = 0
 
-    init() {
+    init(finderActions: FinderActionController = FinderActionController()) {
+        self.finderActions = finderActions
         let source = DispatchSource.makeMemoryPressureSource(
             eventMask: [.warning, .critical],
             queue: .main
@@ -86,6 +100,14 @@ final class AppModel: ObservableObject {
             return true
         }
         return false
+    }
+
+    var canRevealCurrentFile: Bool {
+        currentFinderActionTarget != nil && !isFinderActionPending
+    }
+
+    var canMoveCurrentFileToTrash: Bool {
+        currentFinderActionTarget != nil && !isFinderActionPending
     }
 
     var zoomPercentage: String {
@@ -217,6 +239,89 @@ final class AppModel: ObservableObject {
         Diagnostics.recordFullscreenCommand(
             duration: start.duration(to: .now)
         )
+    }
+
+    func revealCurrentInFinder() {
+        guard let target = currentFinderActionTarget else { return }
+        finderActionError = nil
+        isFinderActionPending = true
+        let actionID = UUID()
+        finderActionID = actionID
+        Diagnostics.recordRevealRequested()
+        let started = ContinuousClock.now
+        finderActionTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if finderActionID == actionID {
+                    finderActionID = nil
+                    isFinderActionPending = false
+                }
+            }
+            do {
+                try await finderActions.reveal(target)
+                Diagnostics.recordRevealSucceeded(
+                    duration: started.duration(to: .now)
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                guard finderActionID == actionID else { return }
+                finderActionError = (error as? FinderActionError)?.userMessage
+                    ?? "The image could not be revealed in Finder."
+                Diagnostics.recordRevealFailed(error)
+            }
+        }
+    }
+
+    func moveCurrentToTrash() {
+        // This value is deliberately immutable. Neither confirmation nor the
+        // eventual file operation reads currentURL again.
+        guard let target = currentFinderActionTarget else { return }
+        finderActionError = nil
+        isFinderActionPending = true
+        let actionID = UUID()
+        finderActionID = actionID
+        trashActionTarget = target
+        let started = ContinuousClock.now
+        finderActionTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if finderActionID == actionID {
+                    finderActionID = nil
+                    isFinderActionPending = false
+                    trashActionTarget = nil
+                }
+            }
+            do {
+                let outcome = try await finderActions.confirmAndTrash(target) {
+                    self.isValidFinderActionTarget(target)
+                }
+                guard outcome == .succeeded else { return }
+                Diagnostics.recordTrashSucceeded(
+                    duration: started.duration(to: .now)
+                )
+                guard target.sessionID == currentSessionID else {
+                    Diagnostics.recordStaleFinderAction()
+                    return
+                }
+                reconcileSuccessfulTrash(target)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard finderActionID == actionID else { return }
+                finderActionError = (error as? FinderActionError)?.userMessage
+                    ?? "The image could not be moved to Trash."
+                if case let FinderActionError.trashFailed(domain, code) = error {
+                    Diagnostics.recordTrashFailed(domain: domain, code: code)
+                } else {
+                    Diagnostics.recordTrashFailed(error)
+                }
+            }
+        }
+    }
+
+    func dismissFinderActionError() {
+        finderActionError = nil
     }
 
     func viewportEffectiveScaleChanged(_ scale: CGFloat) {
@@ -378,7 +483,10 @@ final class AppModel: ObservableObject {
                 sourceURL: url.standardizedFileURL,
                 filename: url.lastPathComponent,
                 image: loaded.image,
-                generation: request.generation
+                generation: request.generation,
+                fileIdentity: loaded.fileIdentity,
+                fileSize: loaded.fileSize,
+                modificationDate: loaded.modificationDate
             )
             viewportState = ViewportState(
                 mode: .fit,
@@ -569,9 +677,131 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private var currentFinderActionTarget: FinderActionTarget? {
+        guard
+            case .ready = loadState,
+            let displayedImage,
+            let currentURL,
+            displayedImage.sourceURL == currentURL.standardizedFileURL
+        else { return nil }
+        return FinderActionTarget(
+            sessionID: currentSessionID,
+            url: displayedImage.sourceURL,
+            filename: displayedImage.filename,
+            imageGeneration: displayedImage.generation,
+            fileIdentity: displayedImage.fileIdentity,
+            fileSize: displayedImage.fileSize,
+            modificationDate: displayedImage.modificationDate
+        )
+    }
+
+    private func isValidFinderActionTarget(_ target: FinderActionTarget) -> Bool {
+        guard target.sessionID == currentSessionID else {
+            Diagnostics.recordStaleFinderAction()
+            return false
+        }
+        if let snapshot = navigationSnapshot {
+            let exists = snapshot.entries.contains { entry in
+                entry.url == target.url
+                    && (target.fileIdentity == nil
+                        || entry.fileIdentity == nil
+                        || entry.fileIdentity == target.fileIdentity)
+            }
+            if !exists { Diagnostics.recordStaleFinderAction() }
+            return exists
+        }
+        let valid = currentURL?.standardizedFileURL == target.url
+            && displayedImage?.generation == target.imageGeneration
+        if !valid { Diagnostics.recordStaleFinderAction() }
+        return valid
+    }
+
+    private func reconcileSuccessfulTrash(_ target: FinderActionTarget) {
+        let updateStarted = ContinuousClock.now
+        folderAccess.releaseSelectedFileAccess(ifMatching: target.url)
+        rotationsByURL.removeValue(forKey: target.url)
+        rotationOrder.removeAll(where: { $0 == target.url })
+        thumbnailEvictionGeneration &+= 1
+        thumbnailEviction = ThumbnailEvictionRequest(
+            url: target.url,
+            generation: thumbnailEvictionGeneration
+        )
+        let evictionGeneration = thumbnailEvictionGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard self?.thumbnailEviction?.generation == evictionGeneration else {
+                return
+            }
+            self?.thumbnailEviction = nil
+        }
+        Diagnostics.recordThumbnailTrashEviction()
+
+        if let snapshot = navigationSnapshot,
+           let removal = snapshot.removing(
+               url: target.url,
+               fileIdentity: target.fileIdentity
+           ) {
+            navigationSnapshot = removal.selectedEntry.flatMap {
+                NavigationSnapshot(
+                    entries: removal.remainingEntries,
+                    selectedURL: $0.url,
+                    selectedIdentity: $0.fileIdentity
+                )
+            }
+            if !removal.removedWasCurrent,
+               currentURL?.standardizedFileURL != target.url {
+                if let current = removal.selectedEntry {
+                    updateWindowTitle(filename: current.filename)
+                }
+                Diagnostics.recordPostTrashCollectionUpdate(
+                    duration: updateStarted.duration(to: .now),
+                    becameEmpty: false
+                )
+                return
+            }
+            transitionAfterTrashingCurrent(to: removal.selectedEntry)
+        } else if currentURL?.standardizedFileURL == target.url {
+            navigationSnapshot = nil
+            transitionAfterTrashingCurrent(to: nil)
+        } else {
+            Diagnostics.recordStaleFinderAction()
+            return
+        }
+        Diagnostics.recordPostTrashCollectionUpdate(
+            duration: updateStarted.duration(to: .now),
+            becameEmpty: currentURL == nil
+        )
+    }
+
+    private func transitionAfterTrashingCurrent(to entry: NavigationEntry?) {
+        decodeTask?.cancel()
+        displayedImage = nil
+        effectiveViewportScale = 1
+        viewportState = ViewportState()
+        if let entry {
+            currentURL = entry.url
+            loadState = .loading(filename: entry.filename)
+            updateWindowTitle(filename: entry.filename)
+            startDecode(
+                url: entry.url,
+                sessionID: currentSessionID,
+                isNavigation: true
+            )
+        } else {
+            currentURL = nil
+            loadState = .emptyFolder
+            NSApp.mainWindow?.title = "Ohbee Preview"
+            Diagnostics.recordEmptyFolderTransition()
+        }
+    }
+
     private func cancelSessionWork() {
         decodeTask?.cancel()
         discoveryTask?.cancel()
+        finderActionTask?.cancel()
+        finderActionTask = nil
+        finderActionID = nil
+        isFinderActionPending = false
+        trashActionTarget = nil
         endPendingDisplayIntervals(outcome: "superseded")
     }
 

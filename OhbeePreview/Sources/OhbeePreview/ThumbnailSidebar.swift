@@ -48,6 +48,14 @@ final class ThumbnailSidebarModel: ObservableObject {
         Task { await controller.cancelAll() }
     }
 
+    func evict(url: URL) {
+        let normalized = url.standardizedFileURL
+        for key in Array(prefetchTasks.keys) where key.url == normalized {
+            prefetchTasks.removeValue(forKey: key)?.cancel()
+        }
+        Task { await controller.evict(url: normalized) }
+    }
+
     func rowVisibilityChanged(
         index: Int,
         visible: Bool,
@@ -184,6 +192,7 @@ struct ThumbnailSidebar: View {
     let entries: [NavigationEntry]
     let selectedURL: URL?
     let folderGeneration: UInt64
+    let eviction: ThumbnailEvictionRequest?
     let onSelect: (NavigationEntry) -> Void
 
     @StateObject private var model = ThumbnailSidebarModel()
@@ -252,6 +261,10 @@ struct ThumbnailSidebar: View {
             }
             .onChange(of: folderGeneration) { _, _ in
                 model.beginFolderSession()
+            }
+            .onChange(of: eviction) { _, request in
+                guard let request else { return }
+                model.evict(url: request.url)
             }
             .onDisappear {
                 model.stop()

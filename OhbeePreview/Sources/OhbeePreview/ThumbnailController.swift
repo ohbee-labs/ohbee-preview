@@ -1,5 +1,10 @@
 import Foundation
 
+struct ThumbnailEvictionRequest: Sendable, Equatable {
+    let url: URL
+    let generation: UInt64
+}
+
 struct ThumbnailControllerMetrics: Sendable, Equatable {
     let cache: ThumbnailCache.Snapshot
     let scheduler: ThumbnailScheduler.Snapshot
@@ -120,6 +125,14 @@ actor ThumbnailController {
     func cancelAll() async {
         session &+= 1
         await scheduler.cancelAll()
+    }
+
+    func evict(url: URL) async {
+        await scheduler.cancel(url: url)
+        let removed = await cache.remove(url: url)
+        await MainActor.run {
+            Diagnostics.recordThumbnailEviction(removed: removed)
+        }
     }
 
     func handleMemoryPressure() async {

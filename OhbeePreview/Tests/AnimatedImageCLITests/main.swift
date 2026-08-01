@@ -322,6 +322,21 @@ struct AnimatedImageTests {
         try expect(remainedPaused, "Paused advancement")
         await MainActor.run { controller.setActive(true) }
         try await waitUntil { controller.presentationRevision > pausedRevision }
+        await MainActor.run { controller.setFileActionSuspended(true) }
+        let actionPaused = await MainActor.run {
+            controller.playbackState == .paused
+        }
+        try expect(actionPaused, "Trash confirmation did not pause playback")
+        let actionPausedRevision = await MainActor.run {
+            controller.presentationRevision
+        }
+        await Task.yield()
+        let heldForFileAction = await MainActor.run {
+            controller.presentationRevision == actionPausedRevision
+        }
+        try expect(heldForFileAction, "Playback advanced during Trash confirmation")
+        await MainActor.run { controller.setFileActionSuspended(false) }
+        try await waitUntil { controller.presentationRevision > actionPausedRevision }
 
         await MainActor.run { controller.select(url: finiteURL, generation: 2) }
         try await waitUntil { controller.playbackState == .completed }
@@ -365,6 +380,6 @@ struct AnimatedImageTests {
         print(
             "METRIC: gifFrames=\(metadata.frameCount) pixels=\(metadata.pixelWidth)x\(metadata.pixelHeight) classification=\(classificationDuration) frameDecode=\(frameDecodeDuration) frameStoreLimitBytes=67108864 frameStoreLimitCount=8"
         )
-        print("PASS: 31 animated image pipeline checks")
+        print("PASS: 33 animated image pipeline checks")
     }
 }

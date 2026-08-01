@@ -16,6 +16,7 @@ enum Diagnostics {
     static let thumbnail = Logger(subsystem: subsystem, category: "thumbnail")
     static let cache = Logger(subsystem: subsystem, category: "cache")
     static let gif = Logger(subsystem: subsystem, category: "gif")
+    static let finderAction = Logger(subsystem: subsystem, category: "finder-action")
 
     static let lifecycleSignposter = OSSignposter(
         subsystem: subsystem,
@@ -53,6 +54,10 @@ enum Diagnostics {
         subsystem: subsystem,
         category: "gif"
     )
+    static let finderActionSignposter = OSSignposter(
+        subsystem: subsystem,
+        category: "finder-action"
+    )
 
     private static let applicationEnteredAt = ContinuousClock.now
     private static var cancelledDecodeCount = 0
@@ -73,6 +78,13 @@ enum Diagnostics {
     private static var gifStaleFrames = 0
     private static var gifFailures = 0
     private static var gifMemoryPurges = 0
+    private static var revealRequests = 0
+    private static var trashConfirmations = 0
+    private static var trashCancellations = 0
+    private static var trashSuccesses = 0
+    private static var trashFailures = 0
+    private static var staleFinderActions = 0
+    private static var emptyFolderTransitions = 0
 
     static func markApplicationEntry() {
         _ = applicationEnteredAt
@@ -426,5 +438,84 @@ enum Diagnostics {
         gif.notice(
             "GIF frame memory purged total=\(gifMemoryPurges) retained=\(snapshot.count) cost=\(snapshot.cost)"
         )
+    }
+
+    static func recordRevealRequested() {
+        revealRequests += 1
+        finderAction.notice("Reveal requested total=\(revealRequests)")
+    }
+
+    static func recordRevealSucceeded(duration: Duration) {
+        finderAction.notice(
+            "Reveal succeeded duration=\(String(describing: duration), privacy: .public)"
+        )
+    }
+
+    static func recordRevealFailed(_ error: Error) {
+        finderAction.error(
+            "Reveal failed category=\(privacySafeError(error), privacy: .public)"
+        )
+    }
+
+    static func recordTrashConfirmationShown() {
+        trashConfirmations += 1
+        finderAction.notice("Trash confirmation shown total=\(trashConfirmations)")
+    }
+
+    static func recordTrashConfirmationCancelled() {
+        trashCancellations += 1
+        finderAction.notice("Trash confirmation cancelled total=\(trashCancellations)")
+    }
+
+    static func recordTrashSucceeded(duration: Duration) {
+        trashSuccesses += 1
+        finderAction.notice(
+            "Trash succeeded total=\(trashSuccesses) duration=\(String(describing: duration), privacy: .public)"
+        )
+        finderActionSignposter.emitEvent(
+            "TrashSucceeded",
+            "duration=\(String(describing: duration))"
+        )
+    }
+
+    static func recordTrashFailed(_ error: Error) {
+        trashFailures += 1
+        finderAction.error(
+            "Trash failed total=\(trashFailures) category=\(privacySafeError(error), privacy: .public)"
+        )
+    }
+
+    static func recordTrashFailed(domain: String, code: Int) {
+        trashFailures += 1
+        finderAction.error(
+            "Trash failed total=\(trashFailures) domain=\(domain, privacy: .public) code=\(code)"
+        )
+    }
+
+    static func recordPostTrashCollectionUpdate(
+        duration: Duration,
+        becameEmpty: Bool
+    ) {
+        finderAction.notice(
+            "Post-Trash collection updated empty=\(becameEmpty) duration=\(String(describing: duration), privacy: .public)"
+        )
+    }
+
+    static func recordThumbnailTrashEviction() {
+        finderAction.debug("Thumbnail eviction requested after Trash")
+    }
+
+    static func recordThumbnailEviction(removed: Int) {
+        finderAction.debug("Thumbnail eviction completed entries=\(removed)")
+    }
+
+    static func recordStaleFinderAction() {
+        staleFinderActions += 1
+        finderAction.notice("Stale Finder action rejected total=\(staleFinderActions)")
+    }
+
+    static func recordEmptyFolderTransition() {
+        emptyFolderTransitions += 1
+        finderAction.notice("Empty-folder transition total=\(emptyFolderTransitions)")
     }
 }

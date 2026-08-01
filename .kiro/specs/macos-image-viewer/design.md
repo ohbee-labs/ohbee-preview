@@ -301,6 +301,9 @@ Responsibilities:
 - Move the authorized current file to Trash after presentation confirms.
 - Report cancellation and typed failures.
 - Never update navigation state before confirmed success.
+- Capture an immutable `FinderActionTarget` at invocation with folder-session ID, committed URL, selected-image generation, file identity, size, and modification date.
+- Keep native Reveal/Trash APIs and confirmation presentation in `FinderActionController` and its two concrete services; `AppModel` coordinates intent and the successful selection transition only.
+- Revalidate the captured target after confirmation and immediately before Trash. Navigation may change the visible image, but it cannot retarget the pending action.
 
 Requirements: FR-028–030, FR-039.
 
@@ -731,7 +734,7 @@ Resolve the current authorized item and ask Finder to select it. Missing-file fa
 
 ### Confirmed Trash transaction
 
-1. Capture current item identity.
+1. Capture immutable folder-session, committed URL, image-generation, and filesystem identity. Never reread the current selection to choose the target later.
 2. Present native confirmation naming the file.
 3. On cancel, end with no change.
 4. On confirm, stop item-specific playback and speculative work.
@@ -739,6 +742,7 @@ Resolve the current authorized item and ask Finder to select it. Missing-file fa
 6. On success, remove from index.
 7. Select next at the removed index, otherwise previous, otherwise empty state.
 8. On failure, retain item and report.
+9. If the folder session changes before execution, reject the stale action. If it changes while native Trash is committing, never reconcile the old result into the new session.
 
 There is no permanent delete action.
 

@@ -289,6 +289,12 @@ enum ThumbnailPipelineCLITests {
             staleMetrics.staleResults >= 1,
             "Stale session rejection was not counted"
         )
+        await controller.evict(url: keyB.url)
+        let evictedMetrics = await controller.metrics()
+        try expect(
+            evictedMetrics.cache.count == 0 && evictedMetrics.cache.cost == 0,
+            "Targeted Trash eviction retained thumbnail data"
+        )
         await controller.handleMemoryPressure()
         let purgedMetrics = await controller.metrics()
         try expect(
@@ -463,6 +469,6 @@ enum ThumbnailPipelineCLITests {
                 + "cacheCost=\(imageIOMetrics.cache.cost)"
         )
 
-        print("PASS: 34 thumbnail pipeline checks")
+        print("PASS: 35 thumbnail pipeline checks")
     }
 }

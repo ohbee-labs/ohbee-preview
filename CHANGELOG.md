@@ -9,6 +9,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Added native Reveal in Finder and confirmed Move to Trash commands with
+  immutable target identity, deterministic next/previous/empty reconciliation,
+  accessible errors, and privacy-safe local diagnostics.
+- Added targeted thumbnail eviction and GIF playback suspension around Trash.
 - Added bounded, cancellable animated GIF playback using ImageIO with safe delay
   normalization, finite/infinite loop handling, lifecycle pause/restart, and
   generation-safe frame publication.
@@ -22,6 +26,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Prevented a confirmation opened for image A from ever deleting image B after
+  rapid navigation, warm open, or overlapping action cleanup.
 - Preserved zoom, pan, rotation, centering, and document geometry while animated
   frames replace one another in the existing AppKit viewport.
 - Isolated frame task/cache identity by playback session and URL so obsolete GIF

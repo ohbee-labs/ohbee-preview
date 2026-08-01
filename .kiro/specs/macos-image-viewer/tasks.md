@@ -493,7 +493,7 @@ Release when GIF support cannot delay current-image navigation or violate provis
 
 ## 8. Milestone 5 — Safe Finder File Actions
 
-Status: Planned; unstarted and unauthorized
+Status: Completed 2026-08-01; automated and signed-build gates passed with documented manual limitations
 Estimated overall MVP completion after milestone: 84%
 
 ### Objective
@@ -552,9 +552,36 @@ Let users move between Ohbee Preview and Finder and safely remove unwanted image
 
 Release only after Trash behavior passes signed sandbox tests and no permanent-delete path exists.
 
+### Implementation record — 2026-08-01
+
+- Added an isolated `FinderActionController`, native confirmation, Reveal service, and Trash service. Mutation APIs remain outside image decode, thumbnail decode, GIF playback, viewport geometry, and folder enumeration.
+- Every action captures an immutable target containing folder-session ID, committed URL, selected-image generation, filesystem identity, size, and modification date. Confirmation and native execution never reread the later current selection to choose a target.
+- The critical A→B race is covered deterministically: Delete is invoked for A, confirmation remains open, navigation commits B, confirmation resolves, and the service receives only A's original URL/generation while B remains intact and selected.
+- Post-confirmation validation rejects a target removed from the active session; pre-mutation validation rejects missing/replaced files. Per-action UUID ownership prevents a late old action from clearing pending/error/animation state belonging to a newer action.
+- Reveal uses `NSWorkspace.activateFileViewerSelecting`. Trash uses only `FileManager.trashItem`; no permanent-delete API, shell command, AppleScript, bookmark, folder monitor, retry loop, or broad filesystem entitlement was added.
+- Successful current-item Trash chooses the next item at the removed index, otherwise the previous item, otherwise a stable empty-folder state. Removing a noncurrent immutable target preserves the newer current selection.
+- Successful reconciliation cancels stale selected-image work, resets viewport state, removes session rotation state, releases the selected-file scope when applicable, removes the navigation entry, and issues targeted thumbnail cancellation/eviction without rebuilding the thumbnail cache.
+- GIF playback is suspended for the full confirmation/operation interval, resumes after cancellation/failure, and is invalidated by the replacement or empty presentation after successful current-GIF Trash.
+- Added native File-menu commands: Reveal in Finder (`Shift-Command-R`) and destructive Move to Trash (`Command-Delete`), with computed committed-image enabled states, safe-default Cancel confirmation, accessible native labels, concise failure alert, and meaningful empty-folder content.
+- Local diagnostics record Reveal count/outcome, confirmation shown/cancelled, Trash duration/success/failure with exact underlying domain/code where available, post-Trash update latency, targeted thumbnail eviction, stale-action rejection, and empty-folder transitions without paths or filenames.
+- Automated results pass: 22 Folder Navigation core, 17 viewport geometry, 13 Milestone 1 integration, 21 Milestone 2 integration, 30 Finder-action checks, 35 thumbnail pipeline checks, 33 animated-image checks, 73 native AppKit viewport checks, and six-UTI Launch Services validation. HEIC fixture generation remains skipped because the installed ImageIO encoder is unavailable.
+
+### Post-implementation engineering review — 2026-08-01
+
+- Review found and fixed three serious correctness risks: confirmation retargeting after navigation, reconciliation into a newer folder session after an in-flight native mutation, and stale action cleanup clearing state owned by a newer action.
+- Review replaced transiently invalid empty `NavigationSnapshot` mutation with a pure removal result, added filesystem replacement fingerprints when a resource identifier is unavailable, removed cancellation failure after an irreversible Trash commit, and added targeted thumbnail/GIF regression coverage.
+- Architecture 8.8/10; concurrency 9.2/10; safety 9.5/10; memory/resources 9/10; testability 8.8/10; privacy/security 9.5/10; production readiness 8.5/10.
+- Known debt: `NSWorkspace` does not report whether Finder visibly selected the file; native sheet focus, real system Trash placement, VoiceOver, fullscreen, and storage-provider behavior require interactive validation; file size/date is only a fallback identity when the platform resource identifier is unavailable.
+
+### Manual validation status — 2026-08-01
+
+- Automated mutation tests use only disposable temporary copies and a fake disposal directory; no user file is touched and no test permanently deletes a real fixture.
+- Interactive signed-app validation remains pending for visible Finder selection, actual macOS Trash placement/recovery, confirmation focus/VoiceOver, fullscreen, Light/Dark appearance, read-only/unavailable volumes, iCloud Drive, third-party File Providers, and external volumes.
+- Gate decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**. These interactive and environment-specific checks must be closed before a public numbered release.
+
 ## 9. Milestone 6 — Accessible Native Experience
 
-Status: Blocked by Milestone 5
+Status: Planned; unstarted and unauthorized
 Estimated overall MVP completion after milestone: 92%
 
 ### Objective
@@ -816,12 +843,15 @@ Mitigation:
 - Milestone 4: Complete; animated GIF architecture, automated regressions, resource bounds, diagnostics, engineering review, Debug/Release, signing, sandbox, entitlement, UTI, icon, source-integrity, and scope gates pass with visual and long-running manual limitations documented.
 - Final Milestone 4 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
 - Official overall MVP progress: 76%.
+- Milestone 5: Complete; immutable-target Finder actions, deterministic Trash reconciliation, disposable mutation tests, engineering review, Debug/Release, signing, sandbox, entitlement, UTI, icon, privacy, bookmark-absence, and scope gates pass with interactive/system-Trash limitations documented.
+- Final Milestone 5 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
+- Official overall MVP progress: 84%.
 - Release v1.0.1 remains the completed icon-legibility patch with dedicated simplified 16×16, 32×32, and 64×64 artwork and unchanged large artwork.
 - Release v1.0.2 is a focused viewport-correctness patch that reasserts the committed image generation's centering invariant after later SwiftUI/AppKit layout updates.
 - Release v1.0.2 is packaged at `dist/Ohbee-Preview-1.0.2/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.2/Ohbee-Preview-1.0.2-macOS.zip`; no Milestone 3 functionality is included.
 - Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
 - Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, packaged launch smoke, and the installed-build manual Next/Previous matrix pass.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
-- Milestone 5 and later: Planned only and not authorized.
+- Milestone 6 and later: Planned only and not authorized.
 - Post-MVP capabilities: Not authorized.
-- No Milestone 5 or later production code is authorized.
+- No Milestone 6 or later production code is authorized.

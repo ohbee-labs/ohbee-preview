@@ -10,6 +10,8 @@ browsing; its local-folder GUI, keyboard, VoiceOver, Dark Mode, memory-smoke,
 and engineering gates pass, but it has not been published as a numbered release.
 It also contains Milestone 4 animated GIF viewing with bounded frame memory and
 cancellable playback; this work has not been published as a numbered release.
+Milestone 5 adds confirmed, immutable-target Finder Reveal and Move to Trash
+actions; it is likewise not yet a numbered release.
 
 ## Highlights
 
@@ -19,6 +21,7 @@ cancellable playback; this work has not been published as a numbered release.
 - Natural filename sorting with non-wrapping Previous and Next navigation
 - Optional, resizable thumbnail sidebar with progressive on-demand loading
 - Animated GIF playback while the GIF is current and the app is active
+- Reveal the committed image in Finder and move it to Trash after confirmation
 - Fit to Window and Actual Size viewing modes
 - Bounded zoom, trackpad pinch, scrolling, and pointer panning
 - Non-destructive, session-only left and right rotation
@@ -66,6 +69,10 @@ The application has a small set of focused components:
   frame decode at a time, and keeps at most eight frames / 64 MiB of decoded
   frame data independently from thumbnails. Navigation and app inactivity stop
   playback; returning restarts from frame zero.
+- **Finder-action subsystem** captures an immutable committed-image identity,
+  presents native confirmation, and uses macOS Reveal/Trash APIs. Successful
+  Trash selects next, then previous, or shows an empty-folder state; navigation
+  while confirmation is open cannot retarget the action.
 - **Diagnostics** uses privacy-preserving `os.Logger` and signposts locally.
 
 Additional design and product specifications are available in
@@ -86,7 +93,7 @@ release limitations. APNG, animated WebP, video, and Live Photos are unsupported
 | JPEG | `.jpg`, `.jpeg`, `.jpe` |
 | PNG | `.png` |
 | HEIC / HEIF | `.heic`, `.heif` |
-| GIF | `.gif` (static first-frame display in v1.0.2) |
+| GIF | `.gif` (animated on the current development branch; first-frame-only in v1.0.2) |
 | TIFF | `.tif`, `.tiff` |
 
 ## Keyboard Shortcuts
@@ -96,6 +103,8 @@ release limitations. APNG, animated WebP, video, and Live Photos are unsupported
 | Previous image | Left Arrow |
 | Next image | Right Arrow |
 | Toggle thumbnails | Option-Command-T |
+| Reveal in Finder | Shift-Command-R |
+| Move to Trash | Command-Delete |
 | Fit to Window | Command-9 |
 | Actual Size | Command-0 |
 | Zoom In | Command-Equals / Command-Plus |

@@ -25,7 +25,8 @@ final class AnimatedImageController: ObservableObject {
     private var currentURL: URL?
     private var currentGeneration: UInt64?
     private var currentFrameIndex: Int?
-    private var isActive = true
+    private var isApplicationActive = true
+    private var isFileActionSuspended = false
     private var memoryPressureSource: DispatchSourceMemoryPressure?
 
     init(
@@ -64,12 +65,22 @@ final class AnimatedImageController: ObservableObject {
     }
 
     func setActive(_ active: Bool) {
-        guard isActive != active else { return }
-        isActive = active
-        if active {
+        guard isApplicationActive != active else { return }
+        isApplicationActive = active
+        updatePlaybackAvailability(resuming: active)
+    }
+
+    func setFileActionSuspended(_ suspended: Bool) {
+        guard isFileActionSuspended != suspended else { return }
+        isFileActionSuspended = suspended
+        updatePlaybackAvailability(resuming: !suspended)
+    }
+
+    private func updatePlaybackAvailability(resuming: Bool) {
+        if canPlay {
             guard let url = currentURL, let generation = currentGeneration else { return }
             select(url: url, generation: generation)
-            Diagnostics.recordGIFResume()
+            if resuming { Diagnostics.recordGIFResume() }
         } else {
             playbackTask?.cancel()
             let identity = sessionID
@@ -123,7 +134,7 @@ final class AnimatedImageController: ObservableObject {
                 playbackState = .idle
                 return
             }
-            guard isActive else {
+            guard canPlay else {
                 playbackState = .paused
                 return
             }
@@ -160,7 +171,7 @@ final class AnimatedImageController: ObservableObject {
         let playbackStarted = deadline
         var didRecordFirstFrame = false
 
-        while isCurrent(url: url, generation: generation, identity: identity), isActive {
+        while isCurrent(url: url, generation: generation, identity: identity), canPlay {
             do {
                 let decodeStarted = clock.now
                 let frame: AnimatedFrame
@@ -254,5 +265,9 @@ final class AnimatedImageController: ObservableObject {
             && sessionID == identity
             && currentURL == url
             && currentGeneration == generation
+    }
+
+    private var canPlay: Bool {
+        isApplicationActive && !isFileActionSuspended
     }
 }

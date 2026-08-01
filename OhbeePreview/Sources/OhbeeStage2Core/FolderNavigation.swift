@@ -13,6 +13,11 @@ public struct NavigationEntry: Sendable, Hashable {
 }
 
 public struct NavigationSnapshot: Sendable, Equatable {
+    public struct Removal: Sendable, Equatable {
+        public let removedWasCurrent: Bool
+        public let selectedEntry: NavigationEntry?
+        public let remainingEntries: [NavigationEntry]
+    }
     public private(set) var entries: [NavigationEntry]
     public private(set) var currentIndex: Int
 
@@ -71,6 +76,45 @@ public struct NavigationSnapshot: Sendable, Equatable {
         }
         currentIndex = index
         return current
+    }
+
+    @discardableResult
+    public func removing(
+        url: URL,
+        fileIdentity: Data? = nil
+    ) -> Removal? {
+        let normalized = url.standardizedFileURL
+        guard let removedIndex = entries.firstIndex(where: { entry in
+            if entry.url == normalized { return true }
+            guard let fileIdentity, let entryIdentity = entry.fileIdentity else {
+                return false
+            }
+            return fileIdentity == entryIdentity
+        }) else { return nil }
+
+        let removedWasCurrent = removedIndex == currentIndex
+        var remaining = entries
+        remaining.remove(at: removedIndex)
+        guard !remaining.isEmpty else {
+            return Removal(
+                removedWasCurrent: removedWasCurrent,
+                selectedEntry: nil,
+                remainingEntries: []
+            )
+        }
+        let selectedIndex: Int
+        if removedWasCurrent {
+            selectedIndex = min(removedIndex, remaining.index(before: remaining.endIndex))
+        } else if removedIndex < currentIndex {
+            selectedIndex = currentIndex - 1
+        } else {
+            selectedIndex = currentIndex
+        }
+        return Removal(
+            removedWasCurrent: removedWasCurrent,
+            selectedEntry: remaining[selectedIndex],
+            remainingEntries: remaining
+        )
     }
 }
 

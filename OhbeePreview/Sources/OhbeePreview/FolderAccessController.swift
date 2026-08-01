@@ -33,6 +33,17 @@ final class FolderAccessController {
         )
     }
 
+    func releaseSelectedFileAccess(ifMatching fileURL: URL) {
+        guard
+            let selectedFileScope,
+            selectedFileScope.url == fileURL.standardizedFileURL
+        else { return }
+        if selectedFileScope.didStart {
+            selectedFileScope.url.stopAccessingSecurityScopedResource()
+        }
+        self.selectedFileScope = nil
+    }
+
     func hasAuthorized(_ folderURL: URL) -> Bool {
         memory.isAuthorized(folderURL: folderURL)
     }

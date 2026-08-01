@@ -83,6 +83,7 @@ xcrun swiftc \
   "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/ContentView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/FinderActionController.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/FolderAccessController.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/ImageInspectionView.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/OhbeePreviewApp.swift" \
