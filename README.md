@@ -273,5 +273,6 @@ not included in v1.1.0 and has no promised release date.
 
 ## License
 
-A project license has not yet been selected. Until a license is added, no usage
-rights are granted beyond those provided by applicable law.
+Ohbee Preview is available under the [MIT License](LICENSE).
+
+You may use, modify, distribute, and include the software in personal or commercial projects, provided that the copyright notice and license text are retained.
