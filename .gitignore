@@ -3,6 +3,7 @@
 .build-stage2/
 .build-stage2-tests/
 .build-icon/
+.build-benchmark/
 .swiftpm/
 DerivedData/
 dist/

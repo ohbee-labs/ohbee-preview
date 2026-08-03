@@ -523,6 +523,11 @@ Authorized item request
 4. Allow detail only within the current memory budget.
 5. Return a resource-limit failure if safe presentation is impossible.
 
+The MVP static-image guard rejects a dimension above 32,768 pixels per axis,
+an overflow while calculating `width × height × 4`, or an estimated decoded
+cost above 512 MiB before requesting full ImageIO decode. This is a bounded
+allocation guard, not a claim of complete decompression-bomb protection.
+
 ### 12.3 GIF policy
 
 - Validate dimensions, frame count, and timing.

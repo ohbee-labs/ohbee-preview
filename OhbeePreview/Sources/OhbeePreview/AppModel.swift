@@ -425,6 +425,21 @@ final class AppModel: ObservableObject {
         authorization = .declinedForImageSession
     }
 
+    func viewerDidClose() {
+        cancelSessionWork()
+        folderAccess.releaseAll()
+        currentSessionID = UUID()
+        currentURL = nil
+        navigationSnapshot = nil
+        displayedImage = nil
+        rotationsByURL.removeAll(keepingCapacity: false)
+        rotationOrder.removeAll(keepingCapacity: false)
+        viewportState = ViewportState()
+        effectiveViewportScale = 1
+        loadState = .empty
+        authorization = .notAssessed
+    }
+
     private func navigate(previous: Bool) {
         guard var snapshot = navigationSnapshot else { return }
         let target = previous ? snapshot.selectPrevious() : snapshot.selectNext()

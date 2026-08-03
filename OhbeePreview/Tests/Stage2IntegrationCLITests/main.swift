@@ -218,6 +218,23 @@ enum Stage2IntegrationCLITests {
         )
         try await expectLoadError(.permissionDenied, url: denied)
 
+        try expect(
+            StaticImageResourcePolicy.accepts(width: 6_000, height: 4_000),
+            "24-megapixel still was rejected by the resource policy"
+        )
+        try expect(
+            !StaticImageResourcePolicy.accepts(width: 50_000, height: 10),
+            "Excessive image dimension was accepted"
+        )
+        try expect(
+            !StaticImageResourcePolicy.accepts(width: 20_000, height: 20_000),
+            "Excessive decoded byte cost was accepted"
+        )
+        try expect(
+            StaticImageResourcePolicy.decodedByteCost(width: Int.max, height: 2) == nil,
+            "Overflowing dimension multiplication was accepted"
+        )
+
         let coordinator = OpenRequestCoordinator()
         let recorder = DisplayRecorder()
         let older = await coordinator.begin(url: image1)
@@ -286,6 +303,6 @@ enum Stage2IntegrationCLITests {
             eligible=\(discovered.eligibleImageCount)
             """
         )
-        print("PASS: 13 Folder Navigation MVP integration checks")
+        print("PASS: 17 Folder Navigation MVP and static-resource checks")
     }
 }

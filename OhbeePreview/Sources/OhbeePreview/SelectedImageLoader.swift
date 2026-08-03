@@ -32,8 +32,31 @@ enum SelectedImageLoadError: Error, Equatable {
         case .decodeFailed:
             "The image data could not be decoded."
         case .resourceExcessive:
-            "This GIF is too large to display safely."
+            "This image is too large to display safely."
         }
+    }
+}
+
+enum StaticImageResourcePolicy {
+    static let maximumDimension = 32_768
+    static let maximumDecodedByteCost = 512 * 1_024 * 1_024
+
+    static func decodedByteCost(width: Int, height: Int) -> Int? {
+        guard width > 0, height > 0 else { return nil }
+        let (pixels, pixelOverflow) = width.multipliedReportingOverflow(by: height)
+        let (bytes, byteOverflow) = pixels.multipliedReportingOverflow(by: 4)
+        guard !pixelOverflow, !byteOverflow else { return nil }
+        return bytes
+    }
+
+    static func accepts(width: Int, height: Int) -> Bool {
+        guard width <= maximumDimension, height <= maximumDimension else {
+            return false
+        }
+        guard let cost = decodedByteCost(width: width, height: height) else {
+            return false
+        }
+        return cost <= maximumDecodedByteCost
     }
 }
 
@@ -89,6 +112,13 @@ enum SelectedImageLoader {
             else {
                 throw SelectedImageLoadError.decodeFailed
             }
+            if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil)
+                as? [CFString: Any],
+               let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+               let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+               !StaticImageResourcePolicy.accepts(width: width, height: height) {
+                throw SelectedImageLoadError.resourceExcessive
+            }
             if url.pathExtension.lowercased() == "gif" {
                 let frameCount = CGImageSourceGetCount(source)
                 guard frameCount <= 10_000 else {
@@ -111,6 +141,7 @@ enum SelectedImageLoader {
                     throw SelectedImageLoadError.resourceExcessive
                 }
             }
+            try Task.checkCancellation()
             guard
                 let cgImage = CGImageSourceCreateImageAtIndex(
                     source,

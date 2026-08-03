@@ -78,6 +78,7 @@ struct ContentView: View {
         }
         .onDisappear {
             animation.stop(reason: "view-disappeared")
+            model.viewerDidClose()
         }
         .onChange(of: model.trashActionTarget) { _, target in
             animation.setFileActionSuspended(target != nil)

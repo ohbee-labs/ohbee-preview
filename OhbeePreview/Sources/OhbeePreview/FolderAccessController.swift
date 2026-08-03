@@ -44,6 +44,18 @@ final class FolderAccessController {
         self.selectedFileScope = nil
     }
 
+    func releaseAll() {
+        if let selectedFileScope, selectedFileScope.didStart {
+            selectedFileScope.url.stopAccessingSecurityScopedResource()
+        }
+        selectedFileScope = nil
+        for scope in heldScopes.values where scope.didStart {
+            scope.url.stopAccessingSecurityScopedResource()
+        }
+        heldScopes.removeAll(keepingCapacity: false)
+        memory = SessionAuthorizationMemory()
+    }
+
     func hasAuthorized(_ folderURL: URL) -> Bool {
         memory.isAuthorized(folderURL: folderURL)
     }

@@ -385,10 +385,10 @@ enum ThumbnailPipelineCLITests {
             throw ThumbnailPipelineTestFailure.expectation("Off-screen row retained CGImage")
         }
 
-        // A 10K navigation index must not imply 10K thumbnail requests. Model
+        // A 100K navigation index must not imply 100K thumbnail requests. Model
         // a visible LazyVStack working set of 20 items and verify request volume
         // and decode concurrency remain proportional to that window only.
-        let tenThousandURLs = (0..<10_000).map {
+        let visibleWindowURLs = (0..<100_000).prefix(20).map {
             base.appendingPathComponent("large-folder-\($0).jpg")
         }
         let windowLoader = FakeThumbnailLoader(delay: .milliseconds(1))
@@ -400,7 +400,7 @@ enum ThumbnailPipelineCLITests {
         let windowSession = await windowController.beginFolderSession()
         let windowStart = ContinuousClock.now
         try await withThrowingTaskGroup(of: Void.self) { group in
-            for url in tenThousandURLs.prefix(20) {
+            for url in visibleWindowURLs {
                 group.addTask {
                     _ = try await windowController.thumbnail(
                         for: ThumbnailRequestKey(
@@ -417,14 +417,14 @@ enum ThumbnailPipelineCLITests {
         let windowDuration = windowStart.duration(to: .now)
         let windowLoads = await windowLoader.snapshot()
         let windowMetrics = await windowController.metrics()
-        try expect(windowLoads.loads == 20, "10K folder triggered eager thumbnail work")
-        try expect(windowLoads.peak <= 3, "10K visible window exceeded concurrency bound")
+        try expect(windowLoads.loads == 20, "100K folder triggered eager thumbnail work")
+        try expect(windowLoads.peak <= 3, "100K visible window exceeded concurrency bound")
         try expect(
             windowMetrics.cache.cost <= windowMetrics.cache.costLimit,
-            "10K visible window exceeded cache bound"
+            "100K visible window exceeded cache bound"
         )
         print(
-            "METRIC: entries=10000 requested=20 duration=\(windowDuration) "
+            "METRIC: entries=100000 requested=20 duration=\(windowDuration) "
                 + "peakDecodes=\(windowLoads.peak) cacheCost=\(windowMetrics.cache.cost)"
         )
 
