@@ -67,10 +67,13 @@ struct NativeTrashConfirmation: TrashConfirming {
     func confirmTrash(of target: FinderActionTarget) async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "Move “\(target.filename)” to Trash?"
-        alert.informativeText = "The image will be moved to the macOS Trash and can usually be recovered there."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Move to Trash")
+        alert.messageText = String(localized: "Move “\(target.filename)” to Trash?")
+        alert.informativeText = String(localized: "The image will be moved to the macOS Trash and can usually be recovered there.")
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        alert.addButton(withTitle: String(localized: "Move to Trash"))
+        alert.window.setAccessibilityIdentifier(AccessibilityID.trashConfirmation)
+        alert.buttons[0].setAccessibilityIdentifier(AccessibilityID.trashCancel)
+        alert.buttons[1].setAccessibilityIdentifier(AccessibilityID.trash)
         alert.buttons[1].hasDestructiveAction = true
         alert.buttons[0].keyEquivalent = "\r"
         alert.buttons[1].keyEquivalent = ""

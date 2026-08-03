@@ -4,6 +4,9 @@ struct ContentView: View {
     @ObservedObject var model: AppModel
     @Binding var thumbnailSidebarVisible: Bool
     @StateObject private var animation = AnimatedImageController()
+    @State private var accessibility = AccessibilityCoordinator()
+    @FocusState private var focusedArea: ViewerFocusTarget?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,7 +21,9 @@ struct ContentView: View {
                         selectedURL: model.selectedThumbnailURL,
                         folderGeneration: model.folderGeneration,
                         eviction: model.thumbnailEviction,
-                        onSelect: model.selectThumbnail
+                        onSelect: model.selectThumbnail,
+                        focus: $focusedArea,
+                        reduceMotion: reduceMotion
                     )
                     viewerDetail
                 }
@@ -28,6 +33,43 @@ struct ContentView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .frame(minWidth: 640, minHeight: 480)
+        .onAppear { focusedArea = .viewport }
+        .onChange(of: thumbnailSidebarVisible) { _, isVisible in
+            focusedArea = isVisible ? .thumbnails : .viewport
+            Diagnostics.recordAccessibilityFocusChange(
+                destination: isVisible ? "thumbnails" : "viewport"
+            )
+        }
+        .onChange(of: model.displayedImage?.generation) { _, generation in
+            guard generation != nil, let filename = model.displayedImage?.filename else { return }
+            focusedArea = .viewport
+            let position = model.navigationPosition.map { ", \($0)" } ?? ""
+            accessibility.announce("\(filename)\(position)")
+        }
+        .onChange(of: model.authorization) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            if case .authorizedForSession = newValue {
+                accessibility.announce("Folder navigation is available")
+            }
+        }
+        .onChange(of: model.finderActionError) { _, error in
+            guard let error else {
+                if focusedArea == .error { focusedArea = .viewport }
+                return
+            }
+            focusedArea = .error
+            accessibility.announce(error, priority: .high)
+        }
+        .onChange(of: model.trashActionTarget) { oldTarget, newTarget in
+            guard oldTarget != nil, newTarget == nil, model.finderActionError == nil else { return }
+            focusedArea = model.displayedImage == nil ? .emptyState : .viewport
+        }
+        .onChange(of: model.loadState.accessibilityStateKey) { _, state in
+            if state == "empty-folder" {
+                focusedArea = .emptyState
+                accessibility.announce("No images remain", priority: .high)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
             animation.setActive(false)
         }
@@ -47,7 +89,10 @@ struct ContentView: View {
                 set: { if !$0 { model.dismissFinderActionError() } }
             )
         ) {
-            Button("OK") { model.dismissFinderActionError() }
+            Button("OK") {
+                model.dismissFinderActionError()
+                focusedArea = .viewport
+            }
         } message: {
             Text(model.finderActionError ?? "The file action failed.")
         }
@@ -88,6 +133,11 @@ struct ContentView: View {
                     onInvalidTransform: model.viewportRejectedInvalidTransform
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .focusable()
+                .focused($focusedArea, equals: .viewport)
+                .accessibilityIdentifier(AccessibilityID.viewport)
+                .accessibilityLabel(displayed.filename)
+                .accessibilityValue(model.navigationPosition ?? "Single image")
                 .task(id: displayed.generation) {
                     animation.select(
                         url: displayed.sourceURL,
@@ -113,12 +163,16 @@ struct ContentView: View {
                 systemImage: "photo",
                 description: Text("Open a supported image from Finder.")
             )
+            .accessibilityIdentifier("state.open-image")
         case .emptyFolder:
             ContentUnavailableView(
                 "No Images Remain",
                 systemImage: "photo.on.rectangle.angled",
                 description: Text("Open another image to continue browsing.")
             )
+            .focusable()
+            .focused($focusedArea, equals: .emptyState)
+            .accessibilityIdentifier(AccessibilityID.emptyFolder)
         case let .loading(filename):
             VStack(spacing: 12) {
                 ProgressView()
@@ -126,6 +180,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityLabel("Loading \(filename)")
         case .ready:
             EmptyView()
         case let .failed(filename, message):
@@ -134,6 +189,8 @@ struct ContentView: View {
                 systemImage: "exclamationmark.triangle",
                 description: Text(message)
             )
+            .accessibilityIdentifier(AccessibilityID.error)
+            .accessibilityLabel("Unable to open \(filename). \(message)")
         }
     }
 
@@ -154,6 +211,7 @@ struct ContentView: View {
                 Text("\(filename): \(message)")
             }
             .accessibilityLabel("Unable to open \(filename). \(message)")
+            .accessibilityIdentifier(AccessibilityID.error)
         case .empty, .emptyFolder, .ready:
             EmptyView()
         }
@@ -181,6 +239,7 @@ struct ContentView: View {
             }
             .disabled(!model.canNavigatePrevious)
             .help("Previous Image (Left Arrow)")
+            .accessibilityIdentifier(AccessibilityID.previous)
 
             Spacer()
 
@@ -198,6 +257,18 @@ struct ContentView: View {
             Spacer()
 
             Button {
+                thumbnailSidebarVisible.toggle()
+            } label: {
+                Label(
+                    thumbnailSidebarVisible ? "Hide Thumbnails" : "Show Thumbnails",
+                    systemImage: "sidebar.left"
+                )
+                .labelStyle(.iconOnly)
+            }
+            .help(thumbnailSidebarVisible ? "Hide Thumbnails" : "Show Thumbnails")
+            .accessibilityIdentifier(AccessibilityID.sidebarToggle)
+
+            Button {
                 model.navigateNext()
             } label: {
                 Label("Next Image", systemImage: "chevron.right")
@@ -205,6 +276,7 @@ struct ContentView: View {
             }
             .disabled(!model.canNavigateNext)
             .help("Next Image (Right Arrow)")
+            .accessibilityIdentifier(AccessibilityID.next)
         }
         .padding(.horizontal, 12)
         .frame(height: 38)
@@ -220,6 +292,7 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
             }
             .help("Rotate Left (Command-L)")
+            .accessibilityIdentifier(AccessibilityID.rotateLeft)
 
             Button {
                 model.fitToWindow()
@@ -231,12 +304,14 @@ struct ContentView: View {
                 .labelStyle(.iconOnly)
             }
             .help("Fit to Window (Command-9)")
+            .accessibilityIdentifier(AccessibilityID.fit)
 
             Button("1:1") {
                 model.showActualSize()
             }
             .help("Actual Size (Command-0)")
             .accessibilityLabel("Actual Size")
+            .accessibilityIdentifier(AccessibilityID.actualSize)
 
             Button {
                 model.zoomOut()
@@ -245,6 +320,7 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
             }
             .help("Zoom Out (Command-Minus)")
+            .accessibilityIdentifier(AccessibilityID.zoomOut)
 
             Text(model.zoomPercentage)
                 .font(.callout.monospacedDigit())
@@ -258,6 +334,7 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
             }
             .help("Zoom In (Command-Equals)")
+            .accessibilityIdentifier(AccessibilityID.zoomIn)
 
             Button {
                 model.rotateRight()
@@ -266,6 +343,7 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
             }
             .help("Rotate Right (Command-R)")
+            .accessibilityIdentifier(AccessibilityID.rotateRight)
 
             Spacer()
 
@@ -279,6 +357,7 @@ struct ContentView: View {
                 .labelStyle(.iconOnly)
             }
             .help("Toggle Full Screen (Control-Command-F)")
+            .accessibilityIdentifier("command.fullscreen")
         }
         .buttonStyle(.borderless)
         .disabled(!model.canInspectImage)
@@ -292,12 +371,31 @@ struct ContentView: View {
             Image(systemName: "folder")
             Text(model.folderAccessMessage)
             Spacer()
+            Button("Not Now") {
+                model.dismissFolderAccessPrompt()
+                focusedArea = .viewport
+            }
+            .buttonStyle(.borderless)
             Button("Allow Access") {
                 model.allowFolderAccess()
             }
             .buttonStyle(.bordered)
+            .focused($focusedArea, equals: .folderAccess)
+            .accessibilityIdentifier(AccessibilityID.folderAccess)
         }
         .padding(10)
         .background(.bar)
+    }
+}
+
+private extension AppModel.LoadState {
+    var accessibilityStateKey: String {
+        switch self {
+        case .empty: "empty"
+        case .emptyFolder: "empty-folder"
+        case .loading: "loading"
+        case .ready: "ready"
+        case .failed: "failed"
+        }
     }
 }

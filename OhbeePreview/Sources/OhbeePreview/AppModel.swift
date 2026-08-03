@@ -419,6 +419,12 @@ final class AppModel: ObservableObject {
         allowFolderAccess()
     }
 
+    func dismissFolderAccessPrompt() {
+        guard let currentURL else { return }
+        folderAccess.markDeclined(for: currentURL)
+        authorization = .declinedForImageSession
+    }
+
     private func navigate(previous: Bool) {
         guard var snapshot = navigationSnapshot else { return }
         let target = previous ? snapshot.selectPrevious() : snapshot.selectNext()

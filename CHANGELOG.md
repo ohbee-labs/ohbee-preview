@@ -9,6 +9,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Added a complete native command surface including standard Command-O, stable
+  privacy-safe accessibility identifiers, explicit viewer/sidebar focus, and a
+  keyboard-reachable folder-access dismissal.
+- Added concise VoiceOver image/position, selection, loading, error, empty-state,
+  folder-authorization, Trash, and Finder-action semantics with duplicate
+  announcement suppression.
+- Added Reduce Motion-aware thumbnail synchronization and local-only accessibility
+  focus, suppression, and branch diagnostics.
+- Added deterministic shortcut-collision, identifier-stability, focus-intent,
+  selected-state, safe-confirmation, and Reduced Motion regression checks.
 - Added native Reveal in Finder and confirmed Move to Trash commands with
   immutable target identity, deterministic next/previous/empty reconciliation,
   accessible errors, and privacy-safe local diagnostics.
@@ -26,6 +36,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Restored the native File > Open command that had been displaced by the custom
+  File command group, and made command enablement consistent in empty states.
+- Ensured closing the sidebar, cancelling Trash, dismissing an error, completing
+  Trash, and warm Finder open restore a predictable focus target without reacting
+  to GIF frames or thumbnail publication.
 - Prevented a confirmation opened for image A from ever deleting image B after
   rapid navigation, warm open, or overlapping action cleanup.
 - Preserved zoom, pan, rotation, centering, and document geometry while animated

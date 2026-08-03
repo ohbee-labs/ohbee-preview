@@ -76,6 +76,8 @@ xcrun swiftc \
   -I "$CORE_MODULE_DIR" \
   "$CORE_MODULE_DIR/OhbeeStage2Core.o" \
   "$PROJECT_DIR/Sources/OhbeePreview/AppDelegate.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityCoordinator.swift" \
+  "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityMetadata.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/AppModel.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameScheduler.swift" \
   "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \

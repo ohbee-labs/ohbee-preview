@@ -581,7 +581,7 @@ Release only after Trash behavior passes signed sandbox tests and no permanent-d
 
 ## 9. Milestone 6 — Accessible Native Experience
 
-Status: Planned; unstarted and unauthorized
+Status: Implemented; automated/build gates passed with manual accessibility limitations
 Estimated overall MVP completion after milestone: 92%
 
 ### Objective
@@ -634,9 +634,31 @@ Make every delivered MVP journey complete for keyboard and assistive-technology 
 
 Release when there is no critical keyboard, VoiceOver, focus, or appearance-accessibility defect across the complete MVP journey.
 
+### Implementation and verification record
+
+- [x] Restored native File > Open with Command-O and audited the complete shortcut map for uniqueness.
+- [x] Added stable, localization-independent identifiers for the viewer, commands, sidebar/rows, Trash confirmation, folder access, error, and empty state.
+- [x] Added an explicit viewer/sidebar/folder-access/error/empty-state focus model without tying focus to GIF frames or thumbnail publication.
+- [x] Kept Trash Cancel as the default action and restored focus after cancellation, success, failure, and empty-folder transition.
+- [x] Added concise VoiceOver labels, image position, selected thumbnail trait/value, state announcements, and duplicate-announcement suppression.
+- [x] Preserved filename-only user-visible semantics and excluded paths, URLs, cache state, generations, EXIF, and per-frame GIF announcements.
+- [x] Audited semantic system colors; selected rows use both outline and selected semantics so state is not color-only.
+- [x] Disabled nonessential programmatic thumbnail-scroll animation under Reduce Motion while preserving GIF content playback.
+- [x] Added privacy-preserving local diagnostics for focus intents, duplicate announcement suppression, and Reduced Motion branch use.
+- [x] Added Milestone 6 deterministic command, metadata, focus-intent, safe-confirmation, and appearance-branch checks.
+- [x] Ran Milestones 1–6 automated suites, Debug/Release builds, signing, sandbox, entitlement, UTI, icon, source-integrity, bookmark-absence, network, and Milestone 7 scope audits.
+- [x] Completed post-implementation engineering review; no serious architecture, concurrency, memory, privacy, or performance finding remains.
+- [ ] Manual signed-app keyboard-only matrix remains to be performed with real system panels and Trash.
+- [ ] Manual VoiceOver hierarchy/focus/announcement matrix remains to be performed with VoiceOver running.
+- [ ] Manual Light/Dark, Increase Contrast, Differentiate Without Color, Reduce Motion, small-window, and fullscreen appearance matrix remains to be performed.
+
+Final gate decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**. Automated behavior, build, signing, privacy, and prior-milestone regression gates pass; the three real assistive-technology/appearance matrices above are explicitly unverified and must be completed before a public release claim.
+
+Engineering review scores: architecture 9.0/10; SwiftUI/AppKit 8.8/10; accessibility implementation 8.5/10; testing 8.6/10; performance 9.1/10; privacy 9.6/10; maintainability 9.0/10; production readiness 8.5/10 pending the documented manual matrices. Review refactors kept `NSOpenPanel` ownership out of `AppModel` and replaced raw file-resource identity in thumbnail identifiers with a stable opaque hash.
+
 ## 10. Milestone 7 — Large-Folder Reliability and MVP Release
 
-Status: Blocked by Milestone 6
+Status: Planned; unstarted and unauthorized
 Estimated overall MVP completion after milestone: 100%
 
 ### Objective
@@ -846,12 +868,15 @@ Mitigation:
 - Milestone 5: Complete; immutable-target Finder actions, deterministic Trash reconciliation, disposable mutation tests, engineering review, Debug/Release, signing, sandbox, entitlement, UTI, icon, privacy, bookmark-absence, and scope gates pass with interactive/system-Trash limitations documented.
 - Final Milestone 5 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
 - Official overall MVP progress: 84%.
+- Milestone 6: Implemented; keyboard command, focus, accessibility metadata, VoiceOver announcement policy, Reduce Motion, semantic appearance, diagnostics, automated regression, build, signing, entitlement, and engineering-review gates pass. Real signed-app keyboard, VoiceOver, and accessibility-appearance matrices remain documented manual limitations.
+- Final Milestone 6 decision: **PASSED WITH DOCUMENTED MANUAL LIMITATIONS**.
+- Official overall MVP progress: 92%.
 - Release v1.0.1 remains the completed icon-legibility patch with dedicated simplified 16×16, 32×32, and 64×64 artwork and unchanged large artwork.
 - Release v1.0.2 is a focused viewport-correctness patch that reasserts the committed image generation's centering invariant after later SwiftUI/AppKit layout updates.
 - Release v1.0.2 is packaged at `dist/Ohbee-Preview-1.0.2/Ohbee Preview.app` and `dist/Ohbee-Preview-1.0.2/Ohbee-Preview-1.0.2-macOS.zip`; no Milestone 3 functionality is included.
 - Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
 - Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, packaged launch smoke, and the installed-build manual Next/Previous matrix pass.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
-- Milestone 6 and later: Planned only and not authorized.
+- Milestone 7 and later: Planned only and not authorized.
 - Post-MVP capabilities: Not authorized.
-- No Milestone 6 or later production code is authorized.
+- No Milestone 7 or later production code is authorized.

@@ -17,6 +17,7 @@ enum Diagnostics {
     static let cache = Logger(subsystem: subsystem, category: "cache")
     static let gif = Logger(subsystem: subsystem, category: "gif")
     static let finderAction = Logger(subsystem: subsystem, category: "finder-action")
+    static let accessibility = Logger(subsystem: subsystem, category: "accessibility")
 
     static let lifecycleSignposter = OSSignposter(
         subsystem: subsystem,
@@ -85,6 +86,9 @@ enum Diagnostics {
     private static var trashFailures = 0
     private static var staleFinderActions = 0
     private static var emptyFolderTransitions = 0
+    private static var duplicateAccessibilityAnnouncements = 0
+    private static var accessibilityFocusChanges = 0
+    private static var reducedMotionBranches = 0
 
     static func markApplicationEntry() {
         _ = applicationEnteredAt
@@ -121,6 +125,27 @@ enum Diagnostics {
             "Primary window ready sinceStart=\(String(describing: duration), privacy: .public)"
         )
         lifecycleSignposter.emitEvent("PrimaryWindowReady")
+    }
+
+    static func recordDuplicateAccessibilityAnnouncementSuppressed() {
+        duplicateAccessibilityAnnouncements += 1
+        accessibility.debug(
+            "Duplicate announcement suppressed total=\(duplicateAccessibilityAnnouncements)"
+        )
+    }
+
+    static func recordAccessibilityFocusChange(destination: StaticString) {
+        accessibilityFocusChanges += 1
+        accessibility.debug(
+            "Focus intent destination=\(destination) total=\(accessibilityFocusChanges)"
+        )
+    }
+
+    static func recordReducedMotionBranch() {
+        reducedMotionBranches += 1
+        accessibility.debug(
+            "Reduced Motion branch used total=\(reducedMotionBranches)"
+        )
     }
 
     static func recordFolderDiscovery(_ result: FolderNavigationResult) {

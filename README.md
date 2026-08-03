@@ -12,6 +12,9 @@ It also contains Milestone 4 animated GIF viewing with bounded frame memory and
 cancellable playback; this work has not been published as a numbered release.
 Milestone 5 adds confirmed, immutable-target Finder Reveal and Move to Trash
 actions; it is likewise not yet a numbered release.
+Milestone 6 completes the keyboard command surface, predictable viewer/sidebar
+focus, concise VoiceOver semantics, stable UI-test identifiers, and native
+appearance accessibility; it is not yet a numbered release.
 
 ## Highlights
 
@@ -27,6 +30,11 @@ actions; it is likewise not yet a numbered release.
 - Non-destructive, session-only left and right rotation
 - Native macOS fullscreen
 - Keyboard-accessible navigation and inspection commands
+- Keyboard-only Open, folder authorization, thumbnail browsing, Finder actions,
+  confirmation, and error recovery
+- VoiceOver labels, position/selection state, concise state announcements, and
+  stable privacy-safe accessibility identifiers
+- Semantic Light/Dark appearance with Reduce Motion-aware sidebar scrolling
 - App Sandbox support with contextual folder authorization
 - Local-only diagnostics using Apple system logging and signposts
 - No analytics, telemetry, cloud services, or third-party dependencies
@@ -74,6 +82,9 @@ The application has a small set of focused components:
   Trash selects next, then previous, or shows an empty-folder state; navigation
   while confirmation is open cannot retarget the action.
 - **Diagnostics** uses privacy-preserving `os.Logger` and signposts locally.
+- **Accessibility metadata** keeps stable identifiers and the reviewed shortcut
+  map near the UI, while a small local announcement coordinator suppresses
+  duplicate announcements without owning feature logic.
 
 Additional design and product specifications are available in
 [`.kiro/specs/macos-image-viewer`](.kiro/specs/macos-image-viewer/).
@@ -100,6 +111,7 @@ release limitations. APNG, animated WebP, video, and Live Photos are unsupported
 
 | Action | Shortcut |
 |---|---|
+| Open image | Command-O |
 | Previous image | Left Arrow |
 | Next image | Right Arrow |
 | Toggle thumbnails | Option-Command-T |
@@ -112,6 +124,31 @@ release limitations. APNG, animated WebP, video, and Live Photos are unsupported
 | Rotate Left | Command-L |
 | Rotate Right | Command-R |
 | Toggle Fullscreen | Control-Command-F |
+
+Tab and Shift-Tab use the native macOS focus order. Opening the thumbnail
+sidebar places keyboard focus in its list; Up/Down changes the selected image,
+and hiding the sidebar restores focus to the main viewport. Native alerts and
+panels retain their standard Return, Escape, and Tab behavior. The Trash alert
+defaults Return to the safe Cancel action.
+
+## Accessibility
+
+Ohbee Preview supports keyboard-only primary workflows and exposes the current
+filename, folder position, loading/error/empty state, thumbnail selection, and
+control purpose to VoiceOver. Animated GIF frames and progressive thumbnail
+arrivals are intentionally not announced. Full paths, internal generations,
+cache details, and decode details are never exposed through accessibility
+metadata.
+
+The interface uses semantic macOS colors in Light and Dark Mode. Selected
+thumbnails use both a selected trait and a visible outline, rather than color
+alone. With Reduce Motion enabled, programmatic thumbnail scrolling avoids
+custom animation; user-selected animated GIF content continues to play.
+
+Automated metadata, command, focus-intent, and regression checks are included.
+A real signed-app keyboard, VoiceOver, Increase Contrast, Differentiate Without
+Color, Reduce Motion, small-window, and fullscreen matrix remains a manual
+release validation and is not represented as accessibility certification.
 
 ## Installation
 
@@ -224,10 +261,6 @@ available and does not trigger an automatic repeat prompt.
 
 Potential future directions include:
 
-- an optional, on-demand thumbnail browser;
-- animated GIF playback;
-- additional Finder integration and safe file actions;
-- accessibility hardening; and
 - measurement-driven optimization for extremely large folders.
 
 These items are future work, have no promised release date, and are not included

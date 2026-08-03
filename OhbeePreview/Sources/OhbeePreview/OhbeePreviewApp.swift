@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 struct OhbeePreviewApp: App {
@@ -26,10 +27,18 @@ struct OhbeePreviewApp: App {
         }
         .commands {
             CommandGroup(replacing: .newItem) {
+                Button("Open…") {
+                    OpenImagePanel.present(onOpen: model.open)
+                }
+                .keyboardShortcut("o", modifiers: .command)
+
+                Divider()
+
                 Button("Allow Folder Access…") {
                     model.manuallyBrowseFolder()
                 }
                 .disabled(!model.canManuallyRequestFolderAccess)
+                .accessibilityIdentifier(AccessibilityID.folderAccess)
 
                 Divider()
 
@@ -38,12 +47,14 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(!model.canRevealCurrentFile)
+                .accessibilityIdentifier(AccessibilityID.reveal)
 
                 Button("Move to Trash…", role: .destructive) {
                     model.moveCurrentToTrash()
                 }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(!model.canMoveCurrentFileToTrash)
+                .accessibilityIdentifier(AccessibilityID.trash)
             }
             CommandMenu("Navigate") {
                 Button("Previous Image") {
@@ -51,12 +62,14 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut(.leftArrow, modifiers: [])
                 .disabled(!model.canNavigatePrevious)
+                .accessibilityIdentifier(AccessibilityID.previous)
 
                 Button("Next Image") {
                     model.navigateNext()
                 }
                 .keyboardShortcut(.rightArrow, modifiers: [])
                 .disabled(!model.canNavigateNext)
+                .accessibilityIdentifier(AccessibilityID.next)
             }
             CommandMenu("Image") {
                 Button("Fit to Window") {
@@ -64,12 +77,14 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut("9", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.fit)
 
                 Button("Actual Size") {
                     model.showActualSize()
                 }
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.actualSize)
 
                 Divider()
 
@@ -78,12 +93,14 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut("=", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.zoomIn)
 
                 Button("Zoom Out") {
                     model.zoomOut()
                 }
                 .keyboardShortcut("-", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.zoomOut)
 
                 Divider()
 
@@ -92,12 +109,14 @@ struct OhbeePreviewApp: App {
                 }
                 .keyboardShortcut("l", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.rotateLeft)
 
                 Button("Rotate Right") {
                     model.rotateRight()
                 }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(!model.canInspectImage)
+                .accessibilityIdentifier(AccessibilityID.rotateRight)
             }
             CommandGroup(after: .sidebar) {
                 Button(
@@ -108,6 +127,7 @@ struct OhbeePreviewApp: App {
                     thumbnailSidebarVisible.toggle()
                 }
                 .keyboardShortcut("t", modifiers: [.command, .option])
+                .accessibilityIdentifier(AccessibilityID.sidebarToggle)
             }
             CommandGroup(after: .help) {
                 Button("Make Ohbee Preview the Default Viewer…") {
@@ -119,17 +139,34 @@ struct OhbeePreviewApp: App {
 }
 
 @MainActor
+private enum OpenImagePanel {
+    static func present(onOpen: (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.title = String(localized: "Open Image")
+        panel.prompt = String(localized: "Open")
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [
+            .jpeg, .png, .heic, .heif, .gif, .tiff
+        ]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        onOpen(url)
+    }
+}
+
+@MainActor
 private enum DefaultViewerHelp {
     static func show() {
         let alert = NSAlert()
-        alert.messageText = "Make Ohbee Preview Your Default Viewer"
-        alert.informativeText = """
+        alert.messageText = String(localized: "Make Ohbee Preview Your Default Viewer")
+        alert.informativeText = String(localized: """
         In Finder, select an image and choose File > Get Info. Under Open with, choose Ohbee Preview, then select Change All.
 
         macOS may store this choice separately for JPEG, PNG, HEIC/HEIF, GIF, and TIFF files.
-        """
+        """)
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: String(localized: "OK"))
         alert.runModal()
     }
 }

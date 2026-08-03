@@ -78,6 +78,7 @@ else
     -framework OSLog \
     -I "$BUILD_ROOT/CoreModule" \
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityMetadata.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AppDelegate.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AppModel.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
@@ -106,6 +107,7 @@ else
     -framework UniformTypeIdentifiers \
     -I "$BUILD_ROOT/CoreModule" \
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityMetadata.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AppModel.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
@@ -134,6 +136,7 @@ else
     -framework UniformTypeIdentifiers \
     -I "$BUILD_ROOT/CoreModule" \
     "$BUILD_ROOT/CoreModule/OhbeeStage2Core.o" \
+    "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityMetadata.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AnimatedFrameStore.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/AnimatedImageLoader.swift" \
     "$PROJECT_DIR/Sources/OhbeePreview/Diagnostics.swift" \
@@ -188,6 +191,17 @@ else
     "$PROJECT_DIR/Tests/NativeViewportCLITests/main.swift" \
     -o "$BUILD_ROOT/NativeViewportCLITests"
   "$BUILD_ROOT/NativeViewportCLITests"
+
+  xcrun swiftc \
+    -target "$(uname -m)-apple-macos14.0" \
+    -sdk "$SDK_PATH" \
+    -module-cache-path "$BUILD_ROOT/ModuleCache" \
+    -swift-version 6 \
+    -parse-as-library \
+    "$PROJECT_DIR/Sources/OhbeePreview/AccessibilityMetadata.swift" \
+    "$PROJECT_DIR/Tests/Milestone6AccessibilityCLITests/main.swift" \
+    -o "$BUILD_ROOT/Milestone6AccessibilityCLITests"
+  "$BUILD_ROOT/Milestone6AccessibilityCLITests"
 fi
 
 INFO_PLIST="$PROJECT_DIR/Resources/Info.plist"

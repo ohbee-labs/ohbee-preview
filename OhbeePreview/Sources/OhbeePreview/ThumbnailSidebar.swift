@@ -194,9 +194,10 @@ struct ThumbnailSidebar: View {
     let folderGeneration: UInt64
     let eviction: ThumbnailEvictionRequest?
     let onSelect: (NavigationEntry) -> Void
+    let focus: FocusState<ViewerFocusTarget?>.Binding
+    let reduceMotion: Bool
 
     @StateObject private var model = ThumbnailSidebarModel()
-    @FocusState private var hasKeyboardFocus: Bool
 
     private let logicalThumbnailSize: CGFloat = 112
 
@@ -213,6 +214,8 @@ struct ThumbnailSidebar: View {
                             let entry = entries[index]
                             ThumbnailRow(
                                 entry: entry,
+                                ordinal: index + 1,
+                                total: entries.count,
                                 selected: entry.url == selectedURL,
                                 controller: model.controller,
                                 session: model.session,
@@ -235,7 +238,7 @@ struct ThumbnailSidebar: View {
             }
             .background(Color(nsColor: .underPageBackgroundColor))
             .overlay {
-                if hasKeyboardFocus {
+                if focus.wrappedValue == .thumbnails {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color.accentColor, lineWidth: 1.5)
                         .padding(2)
@@ -243,11 +246,11 @@ struct ThumbnailSidebar: View {
                 }
             }
             .focusable()
-            .focused($hasKeyboardFocus)
+            .focused(focus, equals: .thumbnails)
             .onMoveCommand(perform: moveSelection)
             .onChange(of: selectedURL) { _, newValue in
                 guard let newValue else { return }
-                proxy.scrollTo(newValue, anchor: .center)
+                scrollToSelection(newValue, proxy: proxy)
             }
             .onChange(of: model.session) { _, newSession in
                 guard newSession != 0, let selectedURL else { return }
@@ -272,6 +275,7 @@ struct ThumbnailSidebar: View {
         }
         .frame(minWidth: 170, idealWidth: 220, maxWidth: 380)
         .accessibilityLabel("Thumbnails")
+        .accessibilityIdentifier(AccessibilityID.thumbnailSidebar)
     }
 
     private var maximumPixelSize: Int {
@@ -299,10 +303,28 @@ struct ThumbnailSidebar: View {
         onSelect(entries[target])
     }
 
+    private func scrollToSelection(
+        _ url: URL,
+        proxy: ScrollViewProxy
+    ) {
+        if reduceMotion {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                proxy.scrollTo(url, anchor: .center)
+            }
+            Diagnostics.recordReducedMotionBranch()
+        } else {
+            proxy.scrollTo(url, anchor: .center)
+        }
+    }
+
 }
 
 private struct ThumbnailRow: View {
     let entry: NavigationEntry
+    let ordinal: Int
+    let total: Int
     let selected: Bool
     let onSelect: () -> Void
     let onVisibilityChange: (Bool) -> Void
@@ -311,6 +333,8 @@ private struct ThumbnailRow: View {
 
     init(
         entry: NavigationEntry,
+        ordinal: Int,
+        total: Int,
         selected: Bool,
         controller: ThumbnailController,
         session: UInt64,
@@ -319,6 +343,8 @@ private struct ThumbnailRow: View {
         onVisibilityChange: @escaping (Bool) -> Void
     ) {
         self.entry = entry
+        self.ordinal = ordinal
+        self.total = total
         self.selected = selected
         self.onSelect = onSelect
         self.onVisibilityChange = onVisibilityChange
@@ -363,8 +389,11 @@ private struct ThumbnailRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(entry.filename)
-        .accessibilityValue(selected ? "Selected" : "")
+        .accessibilityValue("\(ordinal) of \(total)\(selected ? ", selected" : "")")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .accessibilityIdentifier(
+            AccessibilityID.thumbnail(identity: entry.fileIdentity, ordinal: ordinal)
+        )
         .onAppear {
             model.load()
             onVisibilityChange(true)

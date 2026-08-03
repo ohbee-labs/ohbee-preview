@@ -248,6 +248,7 @@ final class InspectionCanvasView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
         setAccessibilityLabel(accessibilityLabel)
+        setAccessibilityIdentifier("viewer.viewport")
         needsDisplay = true
     }
 
