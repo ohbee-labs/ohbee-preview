@@ -65,6 +65,7 @@ enum Milestone6AccessibilityCLITests {
 
         expect(content.contains("accessibilityReduceMotion"), "Reduce Motion is not observed")
         expect(content.contains("focused($focusedArea, equals: .viewport)"), "viewer focus intent is absent")
+        expect(content.contains(".focusEffectDisabled()"), "viewer focus ring is visible")
         expect(content.contains("AccessibilityID.emptyFolder"), "empty state identifier is absent")
         expect(content.contains("AccessibilityID.error"), "error state identifier is absent")
         expect(sidebar.contains("accessibilityAddTraits(selected ? [.isSelected]"), "selected trait is absent")

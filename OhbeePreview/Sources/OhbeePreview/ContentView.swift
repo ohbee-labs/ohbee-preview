@@ -135,6 +135,7 @@ struct ContentView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .focusable()
+                .focusEffectDisabled()
                 .focused($focusedArea, equals: .viewport)
                 .accessibilityIdentifier(AccessibilityID.viewport)
                 .accessibilityLabel(displayed.filename)
