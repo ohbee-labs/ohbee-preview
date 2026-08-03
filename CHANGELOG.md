@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-03
+
 ### Added
 
 - Added a complete native command surface including standard Command-O, stable
@@ -36,6 +38,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Added overflow-safe static-image resource validation and a stable failure for
+  dimensions above 32,768 pixels or estimated decoded cost above 512 MiB.
+- Released selected-image, folder authorization, navigation, rotation, and
+  obsolete task state when the viewer window closes.
 - Restored the native File > Open command that had been displaced by the custom
   File command group, and made command enablement consistent in empty states.
 - Ensured closing the sidebar, cancelling Trash, dismissing an error, completing
@@ -51,6 +57,29 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   instead of allowing detached ImageIO work to outlive its request.
 - Released row-owned thumbnail images when rows leave the visible working set so
   the bounded cache remains the sole retained thumbnail store.
+
+### Changed
+
+- Finalized a measurement-driven large-folder policy without introducing a
+  database, persistent index, disk cache, or eager thumbnail generation.
+- Improved native keyboard, VoiceOver-ready semantics, semantic appearance,
+  Reduced Motion behavior, and privacy-safe local diagnostics.
+
+### Performance
+
+- Added deterministic optimized benchmarks for 100, 1,000, 10,000, and 100,000
+  mixed directory entries with isolated-process RSS measurement.
+- On the documented Apple M1 / 16 GB / internal SSD environment, complete
+  discovery measured approximately 154 ms at 1,000 entries, 823 ms at 10,000,
+  and 7.63 seconds at 100,000; selected-image decoding remains independent.
+- Confirmed a 100,000-entry thumbnail model requests only the 20-item visible
+  working set, with three peak decodes and bounded cache cost.
+
+### Security
+
+- Preserved App Sandbox with user-selected read/write access only, balanced
+  same-session security scopes, no bookmark persistence, no network behavior,
+  and no source mutation outside confirmed Trash operations.
 
 ## [1.0.2] - 2026-07-31
 

@@ -658,7 +658,7 @@ Engineering review scores: architecture 9.0/10; SwiftUI/AppKit 8.8/10; accessibi
 
 ## 10. Milestone 7 — Large-Folder Reliability and MVP Release
 
-Status: Planned; unstarted and unauthorized
+Status: Complete; Release v1.1.0 packaged with documented environment limitations
 Estimated overall MVP completion after milestone: 100%
 
 ### Objective
@@ -733,6 +733,29 @@ Turn the complete feature set into a dependable lightweight release for photogra
 ### Release gate
 
 The MVP may ship when all measurable requirements pass or approved requirement changes are reconciled, all critical/high defects are closed, signed sandbox behavior is verified on the required storage locations, and no Post-MVP infrastructure is present.
+
+### Implementation, benchmark, and release record
+
+- [x] Added deterministic optimized folder benchmark tooling with disposable mixed-entry fixtures, isolated measurement processes, human output, JSON output, and automatic cleanup.
+- [x] Measured cold-process local/internal-SSD discovery with the final symlink-inclusive fixture: 100 entries 121 ms / 15 MiB peak RSS; 1,000 entries 154 ms / 17 MiB; 10,000 entries 823 ms / 38 MiB; 100,000 entries 7.63 s / 254 MiB.
+- [x] Confirmed enumeration dominates 100K time (~7.05 s), while natural sorting is ~555 ms and matching is below 1 ms; no persistent index, sort-key cache, database, or opaque micro-optimization was justified.
+- [x] Confirmed selected-image decode runs independently from folder discovery and obsolete discovery/decode work remains cancellation- and generation-guarded.
+- [x] Extended the 100K thumbnail gate: only 20 visible requests, peak concurrency 3, bounded queue/cache, off-screen release, cancellation, session invalidation, and memory-pressure purge remain intact.
+- [x] Added overflow-safe static-image resource guards: 32,768 pixels per axis and 512 MiB estimated decoded cost; ordinary 24 MP images remain accepted.
+- [x] Confirmed GIF limits remain 10,000 frames, 16,384 pixels per axis, 64 MiB per decoded frame estimate, eight cached frames, and concurrency one.
+- [x] Added viewer-close cleanup for image/navigation/rotation/session tasks and all held security-scoped resources.
+- [x] Re-ran all Milestones 1–6 suites plus Milestone 7 static-resource and 100K reliability checks.
+- [x] Built and signed Debug, Profiling, Benchmark, and clean optimized Release configurations.
+- [x] Verified six UTIs, icon checksum, App Sandbox, `user-selected.read-write`, bookmark absence, network absence, and non-Trash source integrity.
+- [x] Set marketing version 1.1.0 and build 4; created release notes and verified packaging metadata.
+- [x] Completed final engineering, concurrency, memory, performance, safety, privacy, repository, and post-MVP scope reviews; no critical/high defect remains.
+- [ ] Fifteen-minute fully interactive GUI session was unavailable; five repeated automated thumbnail/GIF resource cycles passed in 4.22 seconds without crash, but are not claimed as equivalent to a sustained GUI/RSS observation.
+- [ ] iCloud, third-party File Provider, slow external-volume, and offline-materialization matrices remain unavailable.
+- [ ] Real VoiceOver/appearance and complete packaged GUI interaction matrices remain manual environment limitations.
+
+Final gate decision: **PASSED WITH DOCUMENTED ENVIRONMENT LIMITATIONS**. All deterministic functional, resource, benchmark, build, signing, metadata, packaging, privacy, and scope gates pass. Unavailable storage-provider, assistive-technology, and long interactive GUI environments are documented rather than inferred.
+
+Final engineering review scores: architecture 9.1/10; concurrency 9.3/10; memory 9.1/10; performance 9.0/10; reliability and file safety 9.3/10; testing 8.8/10; privacy and sandboxing 9.7/10; release readiness 8.6/10. Release readiness is reduced only by ad-hoc signing and the explicitly unavailable interactive/storage-provider matrices, not by a confirmed functional or packaging defect.
 
 ## 11. Instrumentation ownership
 
@@ -877,6 +900,9 @@ Mitigation:
 - Packaged metadata verifies marketing version `1.0.2`, build `3`, bundle identifier `com.ohbee.preview`, and the same six approved image UTIs.
 - Full automated validation, lifecycle regression coverage, clean Debug and optimized Release builds, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, v1.0.1 icon checksum preservation, ZIP extraction, packaged launch smoke, and the installed-build manual Next/Previous matrix pass.
 - Clean optimized Release build, ad-hoc signature verification, App Sandbox, `user-selected.read-write`, ZIP extraction, and full automated validation pass.
-- Milestone 7 and later: Planned only and not authorized.
-- Post-MVP capabilities: Not authorized.
-- No Milestone 7 or later production code is authorized.
+- Milestone 7: Complete; large-folder benchmarks, static/GIF/thumbnail resource bounds, session cleanup, all-build verification, release metadata, packaging, documentation, and final engineering-review gates pass with documented environment limitations.
+- Final Milestone 7 decision: **PASSED WITH DOCUMENTED ENVIRONMENT LIMITATIONS**.
+- Official overall MVP progress: 100%.
+- Planned MVP: Complete.
+- Post-MVP capabilities: Not started and not authorized.
+- No post-MVP production code is authorized.

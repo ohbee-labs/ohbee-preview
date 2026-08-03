@@ -3,18 +3,9 @@
 Ohbee Preview is a lightweight, native macOS image viewer focused on fast
 folder browsing, keyboard-first navigation, and predictable image inspection.
 
-Release **v1.0.2** is the current stable MVP baseline. It preserves the v1.0.1
-icon improvement and fixes Fit-to-Window centering after image navigation.
-The current development branch additionally contains Milestone 3 visual folder
-browsing; its local-folder GUI, keyboard, VoiceOver, Dark Mode, memory-smoke,
-and engineering gates pass, but it has not been published as a numbered release.
-It also contains Milestone 4 animated GIF viewing with bounded frame memory and
-cancellable playback; this work has not been published as a numbered release.
-Milestone 5 adds confirmed, immutable-target Finder Reveal and Move to Trash
-actions; it is likewise not yet a numbered release.
-Milestone 6 completes the keyboard command surface, predictable viewer/sidebar
-focus, concise VoiceOver semantics, stable UI-test identifiers, and native
-appearance accessibility; it is not yet a numbered release.
+Release **v1.1.0** is the stable MVP. It combines folder thumbnail browsing,
+bounded animated GIF playback, safe Finder actions, keyboard and VoiceOver-ready
+semantics, native appearance accessibility, and measured large-folder hardening.
 
 ## Highlights
 
@@ -238,6 +229,24 @@ ImageIO pipeline and a 64 MiB byte-cost memory cache; there is no disk cache or
 background folder indexing. Further optimization is driven by measured
 user-visible bottlenecks.
 
+The repeatable optimized benchmark uses mixed supported/unsupported files,
+hidden files, subdirectories, packages, mixed case, and numeric filenames. On a
+MacBook Pro with Apple M1, 16 GB memory, macOS 26.5.2, and local internal SSD,
+measured complete discovery was approximately 121 ms for 100 entries, 154 ms for
+1,000, 823 ms for 10,000, and 7.63 seconds for 100,000. Peak isolated benchmark
+RSS at 100,000 entries was approximately 254 MiB. Opening the selected image is
+an independent task and does not wait for folder discovery.
+
+Run the benchmark with an optimized build using:
+
+```sh
+cd OhbeePreview
+./benchmark.sh 100 1000 10000 100000
+```
+
+Results include a human-readable line and machine-readable JSON. Fixtures are
+generated under the system temporary directory and removed after each run.
+
 ## Privacy
 
 Images are processed locally. Ohbee Preview includes no analytics SDK, user
@@ -254,17 +263,13 @@ after the selected image is displayed.
 
 Folder authorization is retained only for the current application session.
 Persistent authorization and security-scoped bookmarks are intentionally out of
-scope for v1.0.2. Cancelling the folder picker leaves single-image viewing
+scope for v1.1.0. Cancelling the folder picker leaves single-image viewing
 available and does not trigger an automatic repeat prompt.
 
-## Roadmap
+## MVP Status
 
-Potential future directions include:
-
-- measurement-driven optimization for extremely large folders.
-
-These items are future work, have no promised release date, and are not included
-in v1.0.2.
+The planned MVP milestones are complete. Future post-MVP work is intentionally
+not included in v1.1.0 and has no promised release date.
 
 ## License
 
